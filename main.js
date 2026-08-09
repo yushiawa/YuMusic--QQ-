@@ -2142,11 +2142,78 @@ ipcMain.handle('wallpaper-engine-info', () => {
 ipcMain.handle('list-wallpapers', () => listWallpapers());
 ipcMain.handle('we-active-wallpaper', () => weActiveWallpaper());
 
+// ---------- 软件内自动更新（electron-updater → GitHub Releases）----------
+const { autoUpdater } = require('electron-updater');
+let updateState = { checking: false, available: false, downloading: false, downloaded: false, version: '', percent: 0, error: '' };
+function sendUpdateState() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    try { mainWindow.webContents.send('app-update', updateState); } catch (err) { /* 忽略 */ }
+  }
+}
+function setupAutoUpdater(force) {
+  if (!app.isPackaged && !force) return; // 开发模式不检查更新
+  autoUpdater.autoDownload = false; // 先提示用户，确认后下载
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.logger = null;
+  autoUpdater.on('checking-for-update', () => { updateState.checking = true; console.log('[update] checking'); sendUpdateState(); });
+  autoUpdater.on('update-available', (info) => {
+    updateState.checking = false; updateState.available = true; updateState.downloading = false; updateState.downloaded = false;
+    updateState.version = (info && info.version) || '';
+    console.log('[update] available ' + updateState.version);
+    sendUpdateState();
+  });
+  autoUpdater.on('update-not-available', () => {
+    updateState.checking = false; updateState.available = false;
+    console.log('[update] not available');
+    sendUpdateState();
+  });
+  autoUpdater.on('download-progress', (p) => {
+    updateState.downloading = true; updateState.percent = (p && Math.round(p.percent)) || 0;
+    sendUpdateState();
+  });
+  autoUpdater.on('update-downloaded', (info) => {
+    updateState.downloading = false; updateState.downloaded = true;
+    updateState.version = (info && info.version) || updateState.version;
+    sendUpdateState();
+  });
+  autoUpdater.on('error', (err) => {
+    updateState.checking = false; updateState.error = String((err && err.message) || err);
+    console.log('[update] error ' + updateState.error);
+    sendUpdateState();
+  });
+  // 启动 8 秒后后台静默检查，不阻塞首屏
+  setTimeout(() => { autoUpdater.checkForUpdates().catch(() => { /* 忽略网络失败 */ }); }, 8000);
+}
+ipcMain.handle('update-check', async () => {
+  try { await autoUpdater.checkForUpdates(); return { ok: true }; }
+  catch (err) { return { ok: false, error: String((err && err.message) || err) }; }
+});
+ipcMain.handle('update-download', async () => {
+  try { await autoUpdater.downloadUpdate(); return { ok: true }; }
+  catch (err) { return { ok: false, error: String((err && err.message) || err) }; }
+});
+ipcMain.handle('update-install', () => {
+  setImmediate(() => { try { autoUpdater.quitAndInstall(false, true); } catch (err) { /* 忽略 */ } });
+  return { ok: true };
+});
 // ---------- 生命周期 ----------
 app.whenReady().then(registerWallpaperProtocol);
-const dbgMode = ['--smoke', '--shot', '--dom', '--shot-home', '--shot-intro', '--mini-test', '--dom-test', '--qq-diag', '--net-vip-diag', '--ai-diag', '--play-diag', '--lyric-diag', '--amll-diag', '--stage-diag', '--wall-test'].find((f) => process.argv.includes(f));
+const dbgMode = ['--smoke', '--shot', '--dom', '--shot-home', '--shot-intro', '--mini-test', '--dom-test', '--qq-diag', '--net-vip-diag', '--ai-diag', '--play-diag', '--lyric-diag', '--amll-diag', '--stage-diag', '--wall-test', '--update-diag'].find((f) => process.argv.includes(f));
 if (dbgMode) {
   app.whenReady().then(() => {
+    if (dbgMode === '--update-diag') {
+  const feedIdx = process.argv.indexOf('--update-feed');
+  if (feedIdx >= 0 && process.argv[feedIdx + 1]) {
+    try { autoUpdater.setFeedURL({ provider: 'generic', url: String(process.argv[feedIdx + 1]) }); } catch (err) { /* 忽略 */ }
+  }
+  setupAutoUpdater(true);
+  autoUpdater.once('update-available', () => {
+    console.log('[update] auto-downloading…');
+    autoUpdater.downloadUpdate().catch((e) => { console.log('[update] download err ' + String(e && e.message || e)); app.quit(); });
+  });
+  autoUpdater.once('update-downloaded', () => { console.log('[update] downloaded OK'); app.quit(); });
+  setTimeout(() => { console.log('[update] diag done (timeout)'); app.quit(); }, 90000);
+}
     const demoIdx = process.argv.indexOf('--demo-mode');
     const tIdx = process.argv.indexOf('--demo-time');
     const query = { nosplash: dbgMode === '--shot-intro' ? '0' : '1' }; // 调试模式跳过首次启动封面，便于截图 / DOM 检查
@@ -2775,6 +2842,8 @@ out.qqGate = !!out.qqLikedCards.find(t => t.indexOf('登录') >= 0);
           } catch (err) { console.log('DOMTEST FAILED: ' + err); }
           app.quit();
         }, 1200);
+      } else if (dbgMode === '--update-diag') {
+        console.log('[update] window loaded, waiting for update check…');
       } else {
         console.log('SMOKE OK');
         setTimeout(() => app.quit(), 800);
@@ -2788,6 +2857,7 @@ out.qqGate = !!out.qqLikedCards.find(t => t.indexOf('登录') >= 0);
       if (level >= 2) console.log('RENDERER[' + level + '] ' + sourceId + ':' + line + ' ' + message);
     });
     createTray();
+    setupAutoUpdater();
     registerGlobalShortcuts();
     app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createMainWindow(); });
   });

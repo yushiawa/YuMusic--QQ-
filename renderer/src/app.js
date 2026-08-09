@@ -5197,7 +5197,9 @@ async function askAi(prompt) {
   const bubble = addAiMsg('ai', '\u2026');
   try {
     const r = await api.aiChat({ base: cfg.base, key: cfg.key, model: cfg.model }, messages);
-    bubble.textContent = (r && r.ok) ? (r.content || '(\u7a7a\u56de\u590d)') : ('\u8bf7\u6c42\u5931\u8d25\uff1a' + ((r && r.error) || '\u672a\u77e5\u9519\u8bef'));
+    const reply = (r && r.ok) ? (r.content || '') : '';
+    bubble.textContent = reply || ((r && r.ok) ? '(\u7a7a\u56de\u590d)' : ('\u8bf7\u6c42\u5931\u8d25\uff1a' + ((r && r.error) || '\u672a\u77e5\u9519\u8bef')));
+    if (reply) maybeOfferAiPlaylist(bubble, reply);
   } catch (err) {
     bubble.textContent = '\u8bf7\u6c42\u5931\u8d25\uff1a' + String(err && err.message || err);
   }
@@ -5213,6 +5215,117 @@ document.querySelectorAll('.ai-chip').forEach((chip) => {
     else if (t === 'mood') askAi('请为「深夜独处 / 雨天通勤 / 专注学习 / 运动燃脂」任一场景推荐 8 首歌（可让我指定），并说明理由（格式：歌名 - 歌手）。');
     else if (t === 'know') askAi('请分享 3 个有趣且冷门的音乐小知识，最好与我的喜欢歌单里的歌手或年代相关。');
   });
+// ===== 软件内自动更新 =====
+const updateBarEl = document.getElementById('updateBar');
+function applyUpdateState(us) {
+  if (!updateBarEl) return;
+  const verEl = document.getElementById('updateVer');
+  const infoEl = document.getElementById('updateInfo');
+  const btn = document.getElementById('updateBtn');
+  if (us && us.available && !us.downloading && !us.downloaded) {
+    updateBarEl.classList.remove('hidden');
+    if (verEl) verEl.textContent = us.version ? ('v' + us.version) : '新版本';
+    if (infoEl) infoEl.textContent = '发现新版本，点击下载更新';
+    if (btn) { btn.disabled = false; btn.textContent = '下载更新'; btn.dataset.act = 'download'; }
+  } else if (us && us.downloading) {
+    updateBarEl.classList.remove('hidden');
+    if (infoEl) infoEl.textContent = '正在下载更新… ' + (us.percent != null ? us.percent + '%' : '');
+    if (btn) { btn.disabled = true; btn.textContent = '下载中…'; }
+  } else if (us && us.downloaded) {
+    updateBarEl.classList.remove('hidden');
+    if (verEl) verEl.textContent = us.version ? ('v' + us.version) : '新版本';
+    if (infoEl) infoEl.textContent = '更新已就绪，重启后生效';
+    if (btn) { btn.disabled = false; btn.textContent = '立即重启更新'; btn.dataset.act = 'install'; }
+  } else {
+    updateBarEl.classList.add('hidden');
+  }
+}
+if (window.api && api.onAppUpdate) api.onAppUpdate(applyUpdateState);
+const updateBtnEl = document.getElementById('updateBtn');
+if (updateBtnEl) updateBtnEl.addEventListener('click', () => {
+  const act = updateBtnEl.dataset.act || 'download';
+  if (act === 'install') { if (api.updateInstall) api.updateInstall(); }
+  else if (api.updateDownload) { updateBtnEl.disabled = true; updateBtnEl.textContent = '下载中…'; api.updateDownload(); }
+});
+const updateCloseEl = document.getElementById('updateClose');
+if (updateCloseEl) updateCloseEl.addEventListener('click', () => { if (updateBarEl) updateBarEl.classList.add('hidden'); });
+
+// ===== AI 歌单：解析推荐 → 双平台匹配 → 一键播放 =====
+function parseAiSongList(text) {
+  const out = [];
+  const lines = String(text || '').split(/\r?\n/);
+  for (let raw of lines) {
+    let line = raw.trim();
+    if (!line) continue;
+    line = line.replace(/^[（(]?\s*\d+\s*[)）.、:：]\s*/, '').replace(/^[-•·*>\s]+/, '');
+    if (!line) continue;
+    const m = line.match(/^(.{1,40}?)\s*[-–—]\s*(.{1,30})$/);
+    if (m) {
+      const name = m[1].replace(/[《》「」『』""]/g, '').trim();
+      const artist = m[2].trim();
+      if (name && artist) out.push({ name: name, artist: artist });
+    }
+  }
+  return out;
+}
+async function buildAiPlaylist(items) {
+  const songs = [];
+  const seen = new Set();
+  const norm = (x) => String(x || '').toLowerCase().replace(/\s+/g, '');
+  for (const it of items) {
+    const kw = (it.name + (it.artist ? ' ' + it.artist : '')).trim();
+    try {
+      const [nRes, qRes] = await Promise.all([
+        api.search(kw).catch(() => []),
+        api.qqSearch(kw).catch(() => [])
+      ]);
+      const nArr = Array.isArray(nRes) ? nRes.map((sg) => Object.assign({ platform: 'netease' }, sg)) : [];
+      const qArr = Array.isArray(qRes) ? qRes : [];
+      const cands = nArr.concat(qArr);
+      if (!cands.length) continue;
+      const want = norm(it.name);
+      const score = (sg) => {
+        const nm = norm(sg.name);
+        if (nm === want) return 3;
+        if (nm.indexOf(want) >= 0 || want.indexOf(nm) >= 0) return 2;
+        return 0;
+      };
+      cands.sort((a, b) => (score(b) - score(a)) || (Number(a.vip || 0) - Number(b.vip || 0)) || (Number(b.pop || 0) - Number(a.pop || 0)));
+      const pick = cands.find((sg) => score(sg) > 0) || cands[0];
+      if (!pick) continue;
+      const key = (pick.platform || 'netease') + ':' + String(pick.id);
+      if (!seen.has(key)) { seen.add(key); songs.push(pick); }
+    } catch (err) { /* 单曲匹配失败跳过 */ }
+    if (songs.length >= 60) break;
+  }
+  return songs;
+}
+function maybeOfferAiPlaylist(bubble, text) {
+  const items = parseAiSongList(text);
+  if (!items || items.length < 3) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'ai-msg-actions';
+  const btn = document.createElement('button');
+  btn.className = 'ai-play-btn';
+  btn.textContent = '▶ 将这 ' + items.length + ' 首推荐生成播放队列';
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    btn.textContent = '匹配歌曲中…';
+    try {
+      const songs = await buildAiPlaylist(items);
+      if (!songs || !songs.length) { showToast('未能匹配到可播放的歌曲，请检查 AI 输出格式', 'err'); return; }
+      playFromQueue(songs, 0);
+      showToast('已生成 ' + songs.length + ' 首 AI 歌单并开始播放', 'ok');
+    } catch (err) {
+      showToast('生成歌单失败：' + (err.message || err), 'err');
+    } finally {
+      if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+    }
+  });
+  wrap.appendChild(btn);
+  bubble.appendChild(wrap);
+}
+
 });
 function sendAiInput() {
   const v = $('aiInput').value.trim();

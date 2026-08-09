@@ -3325,3 +3325,36 @@ body.ark-theme .ark-theme-btn {
 .lyric-src-badge.src-amll::before { background: #34d399; box-shadow: 0 0 10px rgba(52,211,153,0.9); }
 .lyric-src-badge.src-qq-qrc::before, .lyric-src-badge.src-qq-lrc::before { background: #3b82f6; box-shadow: 0 0 8px rgba(59,130,246,0.8); }
 .lyric-src-badge.src-ncm-yrc::before, .lyric-src-badge.src-ncm::before { background: #ff5f7e; box-shadow: 0 0 8px rgba(255,95,126,0.8); }
+
+/* ===== 软件内更新提示条 ===== */
+.update-bar {
+  position: fixed; top: 64px; right: 16px; z-index: 9999;
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-radius: 12px;
+  background: rgba(20, 22, 34, 0.92); border: 1px solid rgba(120, 200, 255, 0.35);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45); backdrop-filter: blur(14px);
+  font-size: 13px; color: #e8ecf4; max-width: 360px;
+  animation: updateBarIn 0.35s ease;
+}
+@keyframes updateBarIn { from { transform: translateY(-8px); opacity: 0; } to { transform: none; opacity: 1; } }
+.update-bar.hidden { display: none; }
+.update-bar .update-ver {
+  flex: none; padding: 2px 8px; border-radius: 6px; font-weight: 600;
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.28), rgba(168, 85, 247, 0.28));
+  color: #cfe4ff;
+}
+.update-bar .update-info { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.update-bar .update-btn {
+  flex: none; padding: 6px 14px; border: none; border-radius: 8px; cursor: pointer;
+  font-size: 12.5px; font-weight: 600; color: #0b1020;
+  background: linear-gradient(135deg, #7dd3fc, #a78bfa);
+  transition: filter 0.2s, transform 0.1s;
+}
+.update-bar .update-btn:hover { filter: brightness(1.12); }
+.update-bar .update-btn:active { transform: scale(0.96); }
+.update-bar .update-btn:disabled { opacity: 0.6; cursor: default; }
+.update-bar .update-close {
+  flex: none; width: 22px; height: 22px; border: none; border-radius: 6px; cursor: pointer;
+  background: transparent; color: #9aa4b8; font-size: 15px; line-height: 1;
+}
+.update-bar .update-close:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }

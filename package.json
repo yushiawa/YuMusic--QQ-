@@ -1,6 +1,6 @@
 {
   "name": "yu-music",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "YuMusic Electron 3D 音乐播放器",
   "main": "main.js",
   "scripts": {
@@ -14,6 +14,7 @@
   "dependencies": {
     "@chenglou/pretext": "^0.0.8",
     "crypto-js": "^4.2.0",
+    "electron-updater": "^6.8.9",
     "iconv-lite": "^0.7.3",
     "node-forge": "^1.3.1",
     "pixi.js": "^8.19.0",
@@ -62,6 +63,11 @@
       "shortcutName": "YuMusic",
       "uninstallDisplayName": "YuMusic",
       "artifactName": "YuMusic-Setup-${version}.exe"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "yushiawa",
+      "repo": "YuMusic--QQ-"
     }
   },
   "author": "yushi"
