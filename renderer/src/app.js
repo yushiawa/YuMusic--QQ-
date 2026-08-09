@@ -5157,7 +5157,10 @@ async function loadAiContext() {
   if (aiContext) return aiContext;
   addAiMsg('system', '\u6b63\u5728\u8bfb\u53d6\u97f3\u4e50\u6570\u636e\uff08\u6211\u7684\u559c\u6b22 / \u70ed\u66f2\u6392\u884c / \u6bcf\u65e5\u63a8\u8350\uff09\u2026');
   try {
-    aiContext = await api.aiMusicContext();
+    aiContext = await Promise.race([
+      api.aiMusicContext(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('ai context timeout')), 40000))
+    ]);
     return aiContext;
   } catch (err) {
     aiContext = { error: String(err && err.message || err) };
@@ -5227,32 +5230,37 @@ function applyUpdateState(us) {
   const verEl = document.getElementById('updateVer');
   const infoEl = document.getElementById('updateInfo');
   const btn = document.getElementById('updateBtn');
+  const setResult = (t) => { const rr = document.getElementById('updateCheckResult'); if (rr) rr.textContent = t; };
   if (us && us.available && !us.downloading && !us.downloaded) {
     updateBarEl.classList.remove('hidden');
     if (verEl) verEl.textContent = us.version ? ('v' + us.version) : '新版本';
     if (infoEl) infoEl.textContent = '发现新版本，点击下载更新';
     if (manualUpdateCheck) { manualUpdateCheck = false; showToast('发现新版本 v' + (us.version || '') + '，可在右上角更新条下载', 'ok'); }
     if (btn) { btn.disabled = false; btn.textContent = '下载更新'; btn.dataset.act = 'download'; }
+    setResult('发现新版本 v' + (us.version || ''));
   } else if (us && us.downloading) {
     updateBarEl.classList.remove('hidden');
     if (infoEl) infoEl.textContent = '正在下载更新… ' + (us.percent != null ? us.percent + '%' : '');
     if (btn) { btn.disabled = true; btn.textContent = '下载中…'; }
+    setResult('正在下载更新… ' + (us.percent != null ? us.percent + '%' : ''));
   } else if (us && us.downloaded) {
     updateBarEl.classList.remove('hidden');
     if (verEl) verEl.textContent = us.version ? ('v' + us.version) : '新版本';
     if (infoEl) infoEl.textContent = '更新已就绪，重启后生效';
     if (btn) { btn.disabled = false; btn.textContent = '立即重启更新'; btn.dataset.act = 'install'; }
+    setResult('更新已就绪，重启后生效');
   } else if (us && us.error) {
     updateBarEl.classList.add('hidden');
     if (manualUpdateCheck) { manualUpdateCheck = false; showToast('检查更新失败：' + us.error, 'err'); }
+    setResult('检查更新失败：' + String(us.error || '未知错误'));
   } else {
     updateBarEl.classList.add('hidden');
     if (us && us.checking) {
-      if (manualUpdateCheck) { const rr = document.getElementById('updateCheckResult'); if (rr) rr.textContent = '正在检查更新…'; }
+      if (manualUpdateCheck) setResult('正在检查更新…');
     } else if (manualUpdateCheck) {
       manualUpdateCheck = false;
       showToast('当前已是最新版本', 'ok');
-      const rr = document.getElementById('updateCheckResult'); if (rr) rr.textContent = '已是最新版本';
+      setResult('已是最新版本');
     }
   }
 }
@@ -5269,13 +5277,23 @@ const appVersionLabel = document.getElementById('appVersionLabel');
 if (api.appVersion) api.appVersion().then((v) => { if (appVersionLabel) appVersionLabel.textContent = 'v' + (v || ''); }).catch(() => {});
 const updateCheckBtn = document.getElementById('updateCheckBtn');
 const updateCheckResult = document.getElementById('updateCheckResult');
+let updateCheckWatchdog = null;
 if (updateCheckBtn) updateCheckBtn.addEventListener('click', () => {
   if (!api.updateCheck) return;
   manualUpdateCheck = true;
   if (updateCheckResult) updateCheckResult.textContent = '正在检查更新…';
+  if (updateCheckWatchdog) clearTimeout(updateCheckWatchdog);
+  updateCheckWatchdog = setTimeout(() => {
+    manualUpdateCheck = false;
+    updateCheckWatchdog = null;
+    if (updateCheckResult && String(updateCheckResult.textContent).indexOf('正在检查更新…') >= 0) {
+      updateCheckResult.textContent = '检查失败，请稍后重试';
+    }
+  }, 40000);
   api.updateCheck().then((r) => {
     if (r && !r.ok) {
       manualUpdateCheck = false;
+      if (updateCheckWatchdog) { clearTimeout(updateCheckWatchdog); updateCheckWatchdog = null; }
       showToast('检查更新失败：' + (r.error || '未知错误'), 'err');
       if (updateCheckResult) updateCheckResult.textContent = '检查失败，请稍后重试';
     }
@@ -5300,16 +5318,17 @@ function parseAiSongList(text) {
   }
   return out;
 }
-async function buildAiPlaylist(items) {
+async function buildAiPlaylist(items, onProgress) {
   const songs = [];
   const seen = new Set();
+  const withTimeout = (p, ms) => Promise.race([p, new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))]);
   const norm = (x) => String(x || '').toLowerCase().replace(/\s+/g, '');
   for (const it of items) {
     const kw = (it.name + (it.artist ? ' ' + it.artist : '')).trim();
     try {
       const [nRes, qRes] = await Promise.all([
-        api.search(kw).catch(() => []),
-        api.qqSearch(kw).catch(() => [])
+        withTimeout(api.search(kw), 9000).catch(() => []),
+        withTimeout(api.qqSearch(kw), 9000).catch(() => [])
       ]);
       const nArr = Array.isArray(nRes) ? nRes.map((sg) => Object.assign({ platform: 'netease' }, sg)) : [];
       const qArr = Array.isArray(qRes) ? qRes : [];
@@ -5328,6 +5347,7 @@ async function buildAiPlaylist(items) {
       const key = (pick.platform || 'netease') + ':' + String(pick.id);
       if (!seen.has(key)) { seen.add(key); songs.push(pick); }
     } catch (err) { /* 单曲匹配失败跳过 */ }
+    if (onProgress) onProgress(i + 1, items.length);
     if (songs.length >= 60) break;
   }
   return songs;
@@ -5344,7 +5364,7 @@ function maybeOfferAiPlaylist(bubble, text) {
     btn.disabled = true;
     btn.textContent = '匹配歌曲中…';
     try {
-      const songs = await buildAiPlaylist(items);
+      const songs = await buildAiPlaylist(items, (done, total) => { btn.textContent = '匹配歌曲中… ' + done + '/' + total; });
       if (!songs || !songs.length) { showToast('未能匹配到可播放的歌曲，请检查 AI 输出格式', 'err'); return; }
       const aiPl = addAiPlaylist(songs);
       renderAiPlaylistCards();

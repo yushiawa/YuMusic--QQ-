@@ -2186,8 +2186,17 @@ function setupAutoUpdater(force) {
 }
 ipcMain.handle('app-version', () => app.getVersion());
 ipcMain.handle('update-check', async () => {
-  try { await autoUpdater.checkForUpdates(); return { ok: true }; }
-  catch (err) { return { ok: false, error: String((err && err.message) || err) }; }
+  if (!app.isPackaged) return { ok: false, error: '开发模式下不支持在线检查更新，请使用打包版' };
+  try {
+    const checkP = autoUpdater.checkForUpdates().then(() => ({ ok: true })).catch((err) => ({ ok: false, error: String((err && err.message) || err) }));
+    const done = await Promise.race([
+      checkP,
+      new Promise((resolve) => setTimeout(() => resolve({ ok: false, error: '检查更新超时，请检查网络后重试' }), 35000))
+    ]);
+    return done;
+  } catch (err) {
+    return { ok: false, error: String((err && err.message) || err) };
+  }
 });
 ipcMain.handle('update-download', async () => {
   try { await autoUpdater.downloadUpdate(); return { ok: true }; }
