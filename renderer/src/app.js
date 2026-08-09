@@ -5323,7 +5323,8 @@ async function buildAiPlaylist(items, onProgress) {
   const seen = new Set();
   const withTimeout = (p, ms) => Promise.race([p, new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))]);
   const norm = (x) => String(x || '').toLowerCase().replace(/\s+/g, '');
-  for (const it of items) {
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
     const kw = (it.name + (it.artist ? ' ' + it.artist : '')).trim();
     try {
       const [nRes, qRes] = await Promise.all([
