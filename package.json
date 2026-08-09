@@ -1,6 +1,6 @@
 {
   "name": "yu-music",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "YuMusic Electron 3D 音乐播放器",
   "main": "main.js",
   "scripts": {
@@ -8,7 +8,8 @@
     "start": "npm run build && electron .",
     "smoke": "npm run build && electron . --smoke",
     "app": "dist\\YuMusic\\YuMusic.exe .",
-    "start:yu": "npm run build && dist\\YuMusic\\YuMusic.exe ."
+    "start:yu": "npm run build && dist\\YuMusic\\YuMusic.exe .",
+    "dist": "npm run build && electron-builder --win nsis"
   },
   "dependencies": {
     "@chenglou/pretext": "^0.0.8",
@@ -21,7 +22,47 @@
   },
   "devDependencies": {
     "electron": "^31.7.0",
+    "electron-builder": "^24.13.3",
     "esbuild": "^0.21.5"
   },
-  "productName": "YuMusic"
+  "productName": "YuMusic",
+  "build": {
+    "appId": "com.yumusic.app",
+    "productName": "YuMusic",
+    "copyright": "Copyright © 2026 YuMusic",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "preload-lyric.js",
+      "mini-preload.js",
+      "qq-lyric-crypto.js",
+      "renderer/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "renderer/assets/arknights/app-icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "YuMusic",
+      "uninstallDisplayName": "YuMusic",
+      "artifactName": "YuMusic-Setup-${version}.exe"
+    }
+  },
+  "author": "yushi"
 }

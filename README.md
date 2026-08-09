@@ -50,6 +50,20 @@ npm run app
 | `npm run smoke` | 无头冒烟测试，窗口加载成功打印 `SMOKE OK` 后自动退出 |
 | `npm run app` | 使用打包版 Electron 直接运行当前目录 |
 
+
+## 打包安装版（Windows）
+
+```bash
+npm run dist
+```
+
+产物输出到 `release/`：
+
+- `YuMusic-Setup-1.0.0.exe` — NSIS 安装程序，用户下载后双击即可安装部署
+- `win-unpacked/` — 免安装绿色版目录
+
+安装程序支持：可选安装目录、桌面 / 开始菜单快捷方式、自带卸载程序。
+
 ## 目录结构
 
 ```
