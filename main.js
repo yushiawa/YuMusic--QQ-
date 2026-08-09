@@ -2184,6 +2184,7 @@ function setupAutoUpdater(force) {
   // 启动 8 秒后后台静默检查，不阻塞首屏
   setTimeout(() => { autoUpdater.checkForUpdates().catch(() => { /* 忽略网络失败 */ }); }, 8000);
 }
+ipcMain.handle('app-version', () => app.getVersion());
 ipcMain.handle('update-check', async () => {
   try { await autoUpdater.checkForUpdates(); return { ok: true }; }
   catch (err) { return { ok: false, error: String((err && err.message) || err) }; }

@@ -1204,6 +1204,7 @@ async function loadHome() {
       if (heroSub) heroSub.textContent = 'YuMusic 同步接入 QQ 音乐，喜欢歌单与精选歌单随时开播，歌词随节奏流动。';
       const res = await api.qqHome();
       playlistGrid.innerHTML = '';
+      renderAiPlaylistCards();
       if (qqLogin.loggedIn && qqLogin.userId) {
         const liked = await api.qqLiked().catch(() => null);
         if (liked && !liked.error && liked.songs && liked.songs.length) {
@@ -1238,6 +1239,7 @@ async function loadHome() {
       ? '♥ 我的喜欢 · ' + liked.trackCount
       : '♥ 我的喜欢';
     playlistGrid.innerHTML = '';
+    renderAiPlaylistCards();
     if (loginUserId) playlistGrid.appendChild(makeLikedCard(likedSummaryCache, 'netease'));
     if (!res.playlists || !res.playlists.length) {
       playlistGrid.appendChild(li('暂无推荐歌单（' + (res.error || '网络异常') + '）', 'loading-row'));
@@ -1246,6 +1248,7 @@ async function loadHome() {
     res.playlists.forEach((p) => playlistGrid.appendChild(makePlaylistCard(p, 'netease')));
   } catch (err) {
     playlistGrid.innerHTML = '';
+    renderAiPlaylistCards();
     playlistGrid.appendChild(li('加载失败：' + (err.message || err), 'loading-row'));
   }
 }
@@ -5215,8 +5218,10 @@ document.querySelectorAll('.ai-chip').forEach((chip) => {
     else if (t === 'mood') askAi('请为「深夜独处 / 雨天通勤 / 专注学习 / 运动燃脂」任一场景推荐 8 首歌（可让我指定），并说明理由（格式：歌名 - 歌手）。');
     else if (t === 'know') askAi('请分享 3 个有趣且冷门的音乐小知识，最好与我的喜欢歌单里的歌手或年代相关。');
   });
+});
 // ===== 软件内自动更新 =====
 const updateBarEl = document.getElementById('updateBar');
+let manualUpdateCheck = false; // 手动点击「检查更新」后的反馈标记
 function applyUpdateState(us) {
   if (!updateBarEl) return;
   const verEl = document.getElementById('updateVer');
@@ -5226,6 +5231,7 @@ function applyUpdateState(us) {
     updateBarEl.classList.remove('hidden');
     if (verEl) verEl.textContent = us.version ? ('v' + us.version) : '新版本';
     if (infoEl) infoEl.textContent = '发现新版本，点击下载更新';
+    if (manualUpdateCheck) { manualUpdateCheck = false; showToast('发现新版本 v' + (us.version || '') + '，可在右上角更新条下载', 'ok'); }
     if (btn) { btn.disabled = false; btn.textContent = '下载更新'; btn.dataset.act = 'download'; }
   } else if (us && us.downloading) {
     updateBarEl.classList.remove('hidden');
@@ -5236,8 +5242,18 @@ function applyUpdateState(us) {
     if (verEl) verEl.textContent = us.version ? ('v' + us.version) : '新版本';
     if (infoEl) infoEl.textContent = '更新已就绪，重启后生效';
     if (btn) { btn.disabled = false; btn.textContent = '立即重启更新'; btn.dataset.act = 'install'; }
+  } else if (us && us.error) {
+    updateBarEl.classList.add('hidden');
+    if (manualUpdateCheck) { manualUpdateCheck = false; showToast('检查更新失败：' + us.error, 'err'); }
   } else {
     updateBarEl.classList.add('hidden');
+    if (us && us.checking) {
+      if (manualUpdateCheck) { const rr = document.getElementById('updateCheckResult'); if (rr) rr.textContent = '正在检查更新…'; }
+    } else if (manualUpdateCheck) {
+      manualUpdateCheck = false;
+      showToast('当前已是最新版本', 'ok');
+      const rr = document.getElementById('updateCheckResult'); if (rr) rr.textContent = '已是最新版本';
+    }
   }
 }
 if (window.api && api.onAppUpdate) api.onAppUpdate(applyUpdateState);
@@ -5249,6 +5265,22 @@ if (updateBtnEl) updateBtnEl.addEventListener('click', () => {
 });
 const updateCloseEl = document.getElementById('updateClose');
 if (updateCloseEl) updateCloseEl.addEventListener('click', () => { if (updateBarEl) updateBarEl.classList.add('hidden'); });
+const appVersionLabel = document.getElementById('appVersionLabel');
+if (api.appVersion) api.appVersion().then((v) => { if (appVersionLabel) appVersionLabel.textContent = 'v' + (v || ''); }).catch(() => {});
+const updateCheckBtn = document.getElementById('updateCheckBtn');
+const updateCheckResult = document.getElementById('updateCheckResult');
+if (updateCheckBtn) updateCheckBtn.addEventListener('click', () => {
+  if (!api.updateCheck) return;
+  manualUpdateCheck = true;
+  if (updateCheckResult) updateCheckResult.textContent = '正在检查更新…';
+  api.updateCheck().then((r) => {
+    if (r && !r.ok) {
+      manualUpdateCheck = false;
+      showToast('检查更新失败：' + (r.error || '未知错误'), 'err');
+      if (updateCheckResult) updateCheckResult.textContent = '检查失败，请稍后重试';
+    }
+  }).catch(() => {});
+});
 
 // ===== AI 歌单：解析推荐 → 双平台匹配 → 一键播放 =====
 function parseAiSongList(text) {
@@ -5307,15 +5339,17 @@ function maybeOfferAiPlaylist(bubble, text) {
   wrap.className = 'ai-msg-actions';
   const btn = document.createElement('button');
   btn.className = 'ai-play-btn';
-  btn.textContent = '▶ 将这 ' + items.length + ' 首推荐生成播放队列';
+  btn.textContent = '▶ 将这 ' + items.length + ' 首生成 AI 歌单';
   btn.addEventListener('click', async () => {
     btn.disabled = true;
     btn.textContent = '匹配歌曲中…';
     try {
       const songs = await buildAiPlaylist(items);
       if (!songs || !songs.length) { showToast('未能匹配到可播放的歌曲，请检查 AI 输出格式', 'err'); return; }
-      playFromQueue(songs, 0);
-      showToast('已生成 ' + songs.length + ' 首 AI 歌单并开始播放', 'ok');
+      const aiPl = addAiPlaylist(songs);
+      renderAiPlaylistCards();
+      openAiPlaylist(aiPl);
+      showToast('已生成 AI 歌单《' + aiPl.name + '》共 ' + songs.length + ' 首', 'ok');
     } catch (err) {
       showToast('生成歌单失败：' + (err.message || err), 'err');
     } finally {
@@ -5326,7 +5360,78 @@ function maybeOfferAiPlaylist(bubble, text) {
   bubble.appendChild(wrap);
 }
 
-});
+// ===== AI 本地歌单（持久化，可点开查看）=====
+const AI_PL_KEY = 'qin-ai-playlists';
+function loadAiPlaylists() {
+  try { const a = JSON.parse(localStorage.getItem(AI_PL_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; }
+}
+function saveAiPlaylists(list) {
+  try { localStorage.setItem(AI_PL_KEY, JSON.stringify(list.slice(0, 12))); } catch (e) { /* 忽略 */ }
+}
+function makeAiPlaylistName() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return 'AI 歌单 · ' + pad(d.getMonth() + 1) + '月' + pad(d.getDate()) + '日 ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+function addAiPlaylist(songs) {
+  const list = loadAiPlaylists();
+  const pl = { id: 'aipl:' + Date.now(), name: makeAiPlaylistName(), createdAt: Date.now(), songs: songs };
+  list.unshift(pl);
+  saveAiPlaylists(list);
+  return pl;
+}
+function removeAiPlaylist(id) {
+  saveAiPlaylists(loadAiPlaylists().filter((x) => x.id !== id));
+}
+function openAiPlaylist(pl) {
+  if (!pl || !pl.songs || !pl.songs.length) { showToast('歌单为空', 'err'); return; }
+  showView('search');
+  emptyState.classList.add('hidden');
+  renderSongs(pl.songs);
+  displayedListKind = 'ai-pl';
+  setListHeader(pl.name, 'AI 生成 · 本地歌单', pl.songs.length + ' 首歌曲 · 双击播放');
+  statusLine.textContent = 'AI 歌单《' + pl.name + '》共 ' + pl.songs.length + ' 首，双击歌曲播放';
+}
+function makeAiPlaylistCard(pl) {
+  const card = document.createElement('div');
+  card.className = 'playlist-card ai-pl-card';
+  const imgWrap = document.createElement('div');
+  imgWrap.className = 'pl-cover ai-pl-cover';
+  const spark = document.createElement('span');
+  spark.className = 'ai-pl-spark';
+  spark.textContent = 'AI';
+  imgWrap.appendChild(spark);
+  const badge = document.createElement('div');
+  badge.className = 'pl-badge';
+  badge.textContent = pl.songs.length + ' 首';
+  imgWrap.appendChild(badge);
+  const name = document.createElement('div');
+  name.className = 'pl-name';
+  name.textContent = pl.name;
+  const sub = document.createElement('div');
+  sub.className = 'pl-sub';
+  sub.textContent = '本地 AI 歌单 · 点击查看';
+  name.appendChild(sub);
+  const del = document.createElement('button');
+  del.className = 'pl-del';
+  del.title = '删除该歌单';
+  del.textContent = '×';
+  del.addEventListener('click', (e) => {
+    e.stopPropagation();
+    removeAiPlaylist(pl.id);
+    renderAiPlaylistCards();
+    showToast('已删除歌单《' + pl.name + '》', 'info');
+  });
+  card.append(imgWrap, name, del);
+  card.addEventListener('click', () => openAiPlaylist(pl));
+  return card;
+}
+function renderAiPlaylistCards() {
+  if (!playlistGrid) return;
+  loadAiPlaylists().slice(0, 3).forEach((pl) => playlistGrid.appendChild(makeAiPlaylistCard(pl)));
+}
+
+
 function sendAiInput() {
   const v = $('aiInput').value.trim();
   if (!v) return;

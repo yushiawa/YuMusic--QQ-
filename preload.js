@@ -53,6 +53,7 @@ contextBridge.exposeInMainWorld('api', {
   winClose: () => ipcRenderer.invoke('win-close'),
   onMaximized: (cb) => ipcRenderer.on('window-maximized', (_e, isMax) => cb(isMax)),
   updateCheck: () => ipcRenderer.invoke('update-check'),
+  appVersion: () => ipcRenderer.invoke('app-version'),
   updateDownload: () => ipcRenderer.invoke('update-download'),
   updateInstall: () => ipcRenderer.invoke('update-install'),
   onAppUpdate: (cb) => ipcRenderer.on('app-update', (_e, data) => cb(data)),
