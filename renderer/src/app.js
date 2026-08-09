@@ -5495,7 +5495,14 @@ document.querySelectorAll('#bgArtSeg button').forEach((b) => {
 
 // ================= 明日方舟全站主题 =================
 function applyArkTheme(on) {
-  const enable = on === undefined ? localStorage.getItem('qin-ark-theme') === '1' : !!on;
+  const saved = localStorage.getItem('qin-ark-theme');
+  let enable;
+  if (on === undefined) {
+    enable = saved === null ? !!CHAR_THEME[bgSettings.btnStyle] : saved === '1';
+  } else {
+    enable = !!on;
+    try { localStorage.setItem('qin-ark-theme', enable ? '1' : '0'); } catch (err) { /* 忽略 */ }
+  }
   document.body.classList.toggle('ark-theme', enable);
   const btn = $('arkThemeBtn');
   if (btn) btn.classList.toggle('on', enable);

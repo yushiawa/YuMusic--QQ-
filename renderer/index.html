@@ -4,6 +4,19 @@
 <meta charset="UTF-8" />
 <title>YuMusic · 明日方舟风格沉浸式播放器</title>
 <link rel="stylesheet" href="style.css" />
+<script>
+(function(){
+  try {
+    var s = JSON.parse(localStorage.getItem('qin-bg-settings') || '{}');
+    var key = s && s.btnStyle;
+    var hues = { mostma2: 45, 'mostma-skin2': 205, exu: 355, 'exu-skin2': 35 };
+    var h = hues[key];
+    if (h === undefined) h = 200;
+    var rot = ((h - 210) % 360 + 360) % 360;
+    document.documentElement.style.setProperty('--acid-rotate', rot.toFixed(1) + 'deg');
+  } catch (e) {}
+})();
+</script>
 
 </head>
 <body>
