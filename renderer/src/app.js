@@ -2214,6 +2214,19 @@ function showLyricSrcBadge(src) {
   lyricSrcBadgeTimer = setTimeout(function () { b.classList.add('hidden'); }, 8000);
 }
 
+let amllTipTimer = null;
+function showAmllTip() {
+  const tip = document.getElementById('amllTip');
+  if (!tip) return;
+  tip.classList.remove('hidden', 'leave');
+  tip.textContent = '已切换 AMLL 逐字歌词 · 词曲对齐更准';
+  if (amllTipTimer) clearTimeout(amllTipTimer);
+  amllTipTimer = setTimeout(() => {
+    tip.classList.add('leave');
+    setTimeout(() => tip.classList.add('hidden'), 420);
+  }, 4200);
+}
+
 async function loadLyrics(id, platform, song) {
   lyricFloatEl.innerHTML = '';
   lyricsLines = [];
@@ -2297,8 +2310,15 @@ async function loadLyrics(id, platform, song) {
         if (stageMode === 'sonnet') ensureSonnetRuntime();
       }
     }
-    if (lyricSrc === 'amll' && prevLyricSrc !== 'amll' && full && full.yrc) showToast('已切换至 AMLL 逐字歌词', 'ok', 2600);
-    if (lyricsLines.length || yrcLines.length) { showLyricSrcHint(lyricSrc); showLyricSrcBadge(lyricSrc); }
+    const upgradedToAmll = lyricSrc === 'amll' && prevLyricSrc !== 'amll' && full && full.yrc;
+    if (upgradedToAmll) {
+      showToast('已切换至 AMLL 逐字歌词（词曲对齐更准）', 'ok', 4200);
+      showAmllTip();
+    }
+    if (lyricsLines.length || yrcLines.length) {
+      if (!upgradedToAmll) showLyricSrcHint(lyricSrc);
+      showLyricSrcBadge(lyricSrc);
+    }
     hideLyricLoading();
     if (!lyricsLines.length && !yrcLines.length) {
       stageStatus.textContent = '暂无歌词（纯音乐）';
@@ -5206,10 +5226,13 @@ async function askAi(prompt) {
   try {
     const r = await api.aiChat({ base: cfg.base, key: cfg.key, model: cfg.model }, messages);
     const reply = (r && r.ok) ? (r.content || '') : '';
-    bubble.textContent = reply || ((r && r.ok) ? '(\u7a7a\u56de\u590d)' : ('\u8bf7\u6c42\u5931\u8d25\uff1a' + ((r && r.error) || '\u672a\u77e5\u9519\u8bef')));
+    const errMsg = (r && r.error) || '';
+    const friendly = /aborted|timeout|timed out|TimeoutError/i.test(errMsg) ? '\u8bf7\u6c42\u8d85\u65f6\uff1aAI \u54cd\u5e94\u65f6\u95f4\u8f83\u957f\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u6216\u77ed\u5316\u95ee\u9898' : errMsg;
+    bubble.textContent = reply || ((r && r.ok) ? '(\u7a7a\u56de\u590d)' : ('\u8bf7\u6c42\u5931\u8d25\uff1a' + friendly));
     if (reply) maybeOfferAiPlaylist(bubble, reply);
   } catch (err) {
-    bubble.textContent = '\u8bf7\u6c42\u5931\u8d25\uff1a' + String(err && err.message || err);
+    const em = String(err && err.message || err);
+    bubble.textContent = /aborted|timeout|timed out|TimeoutError/i.test(em) ? '\u8bf7\u6c42\u8d85\u65f6\uff1aAI \u54cd\u5e94\u65f6\u95f4\u8f83\u957f\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u6216\u77ed\u5316\u95ee\u9898' : ('\u8bf7\u6c42\u5931\u8d25\uff1a' + em);
   }
 }
 document.querySelectorAll('.ai-chip').forEach((chip) => {

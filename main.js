@@ -1834,7 +1834,7 @@ async function aiRequest(cfg, path, body, method) {
     method: method || 'POST',
     headers,
     body: body ? JSON.stringify(body) : undefined,
-    signal: AbortSignal.timeout(45000)
+    signal: AbortSignal.timeout(180000)
   });
   const text = await res.text();
   let j = null;

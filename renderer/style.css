@@ -3336,6 +3336,23 @@ body.ark-theme .ark-theme-btn {
 .lyric-src-badge.src-qq-qrc::before, .lyric-src-badge.src-qq-lrc::before { background: #3b82f6; box-shadow: 0 0 8px rgba(59,130,246,0.8); }
 .lyric-src-badge.src-ncm-yrc::before, .lyric-src-badge.src-ncm::before { background: #ff5f7e; box-shadow: 0 0 8px rgba(255,95,126,0.8); }
 
+/* AMLL 切换提示 */
+.amll-tip {
+  position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+  z-index: 40; padding: 8px 18px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 700; letter-spacing: .6px; white-space: nowrap;
+  color: #d1fae5; background: rgba(6, 24, 18, 0.82);
+  border: 1px solid rgba(52,211,153,0.55);
+  box-shadow: 0 0 22px rgba(52,211,153,0.28), inset 0 1px 0 rgba(255,255,255,0.1);
+  backdrop-filter: blur(12px);
+  pointer-events: none;
+  animation: amllTipIn .35s cubic-bezier(.2,.9,.3,1.2);
+}
+.amll-tip.leave { animation: amllTipOut .4s ease forwards; }
+.amll-tip.hidden { display: none; }
+@keyframes amllTipIn { from { opacity: 0; transform: translate(-50%, -12px) scale(.94); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
+@keyframes amllTipOut { to { opacity: 0; transform: translate(-50%, -8px) scale(.96); } }
+
 /* ===== 软件内更新提示条 ===== */
 .update-bar {
   position: fixed; top: 64px; right: 16px; z-index: 9999;
