@@ -2805,6 +2805,16 @@ body.ark-theme .intro-title { text-shadow: 0 0 24px rgba(232, 199, 106, 0.55); }
 }
 .ai-msg.user .ai-msg-bubble { background: rgba(34,211,238,0.18); border: 1px solid rgba(34,211,238,0.28); }
 .ai-msg.system .ai-msg-bubble { background: transparent; color: rgba(255,255,255,0.5); font-size: 11px; }
+.ai-msg-actions { margin-top: 6px; display: flex; }
+.ai-play-btn {
+  border: 1px solid rgba(34,211,238,0.4); border-radius: 999px; padding: 6px 12px;
+  background: linear-gradient(120deg, rgba(8,145,178,0.32), rgba(124,58,237,0.4));
+  color: #eafcff; font-size: 11px; font-family: inherit; cursor: pointer;
+  box-shadow: 0 0 12px rgba(34,211,238,0.15);
+  transition: transform .15s, filter .2s, box-shadow .2s, opacity .2s;
+}
+.ai-play-btn:hover:not(:disabled) { filter: brightness(1.15); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(34,211,238,0.3); }
+.ai-play-btn:disabled { opacity: 0.6; cursor: default; }
 .ai-compose { display: flex; gap: 8px; align-items: flex-end; }
 .ai-textarea {
   flex: 1; resize: none; border-radius: 12px; padding: 9px 11px;

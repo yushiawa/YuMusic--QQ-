@@ -5368,6 +5368,7 @@ function maybeOfferAiPlaylist(bubble, text) {
       if (!songs || !songs.length) { showToast('未能匹配到可播放的歌曲，请检查 AI 输出格式', 'err'); return; }
       const aiPl = addAiPlaylist(songs);
       renderAiPlaylistCards();
+      toggleAiPanel(false);
       openAiPlaylist(aiPl);
       showToast('已生成 AI 歌单《' + aiPl.name + '》共 ' + songs.length + ' 首', 'ok');
     } catch (err) {
@@ -5448,7 +5449,10 @@ function makeAiPlaylistCard(pl) {
 }
 function renderAiPlaylistCards() {
   if (!playlistGrid) return;
-  loadAiPlaylists().slice(0, 3).forEach((pl) => playlistGrid.appendChild(makeAiPlaylistCard(pl)));
+  playlistGrid.querySelectorAll('.ai-pl-card').forEach((n) => n.remove());
+  const frag = document.createDocumentFragment();
+  loadAiPlaylists().slice(0, 3).forEach((pl) => frag.appendChild(makeAiPlaylistCard(pl)));
+  playlistGrid.insertBefore(frag, playlistGrid.firstChild);
 }
 
 
