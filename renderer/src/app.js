@@ -2283,6 +2283,7 @@ async function loadLyrics(id, platform, song) {
     // 完整路径：拉取逐字源（AMLL / QQ QRC）后升级为逐字动画
     const full = await fullP;
     if (token !== lyricLoadToken) return;
+    const prevLyricSrc = lyricSrc;
     if (full && typeof full === 'object' && full.src) lyricSrc = full.src;
     showLyricSrcBadge(lyricSrc);
     if (full && typeof full === 'object' && full.yrc) {
@@ -2296,6 +2297,7 @@ async function loadLyrics(id, platform, song) {
         if (stageMode === 'sonnet') ensureSonnetRuntime();
       }
     }
+    if (lyricSrc === 'amll' && prevLyricSrc !== 'amll' && full && full.yrc) showToast('已切换至 AMLL 逐字歌词', 'ok', 2600);
     if (lyricsLines.length || yrcLines.length) { showLyricSrcHint(lyricSrc); showLyricSrcBadge(lyricSrc); }
     hideLyricLoading();
     if (!lyricsLines.length && !yrcLines.length) {

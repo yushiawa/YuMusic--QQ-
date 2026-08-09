@@ -403,7 +403,8 @@ ipcMain.handle('lyric', async (_e, id, platform, extra) => {
   if (hit && Date.now() - hit.time < LYRIC_TTL) return hit.data;
   const url = BASE + '/api/song/lyric?id=' + id + '&lv=-1&kv=-1&tv=-1&yv=-1';
   // 词曲对应准确性优先级：1) AMLL TTML DB（歌曲 ID 精确匹配 + 社区修正时间轴）
-  //                         2) 网易云官方逐字 YRC（同源，版本绝对一致）
+  //                         2) AMLL TTML DB（QQ songmid 兜底，社区修正逐字）
+  //                         2.5) 网易云官方逐字 YRC（同源，版本绝对一致）
   //                         3) QQ QRC（跨源标题/歌手匹配，逐字但版本可能不一致，仅作逐字兜底）
   //                         4) 网易云官方行级 LRC（无逐字动画）
   const qqP = qqLyricForSong(song).catch(() => null);
@@ -418,17 +419,23 @@ ipcMain.handle('lyric', async (_e, id, platform, extra) => {
   try {
     const amll = await amllP;
     if (amll && amll.yrc) {
-      out.yrc = amll.yrc;               // AMLL 与网易云同源，逐字时间轴最准
+      out.yrc = amll.yrc;
       out.src = 'amll';
-      if (!out.lrc) out.lrc = amll.lrc; // 网易云无 LRC 时兜底
-    } else if (!out.yrc) {
-      // 官方无逐字时才用跨源 QQ QRC 兜底，避免拿别家版本覆盖官方同源逐字
+      if (!out.lrc) out.lrc = amll.lrc;
+    } else {
       const qq = await qqP;
-      if (qq && qq.yrc) {
-        out.yrc = qq.yrc;               // QRC 逐字（行级 + 词级时间戳）
+      let amllQq = null;
+      if (qq && qq._songmid) amllQq = await amllLyricForQq(qq._songmid).catch(() => null);
+      if (amllQq && amllQq.yrc) {
+        out.yrc = amllQq.yrc;
+        out.src = 'amll';
+        if (qq.tlyric && !out.tlyric) out.tlyric = qq.tlyric;
+        if (!out.lrc) out.lrc = amllQq.lrc;
+      } else if (!out.yrc && qq && qq.yrc) {
+        out.yrc = qq.yrc;
         out.src = qq.src || 'qq-qrc';
         if (qq.tlyric && !out.tlyric) out.tlyric = qq.tlyric;
-        if (!out.lrc) out.lrc = qq.lrc; // 网易云无 LRC 时兜底
+        if (!out.lrc) out.lrc = qq.lrc;
       }
     }
   } catch (err) { /* 逐字兜底失败可忽略 */ }
@@ -818,22 +825,28 @@ function qqPickBestSong(list, song) {
 }
 async function qqLyricForSong(song) {
   if (!song) return null;
-  const mid = song.songmid;
-  if (mid) return qqLyricCore(mid, song.songid, song);
-  const kw = (String(song.name || '') + ' ' + String(song.artist || '')).trim();
-  if (!kw) return null;
-  const ck = 'kw:' + kw;
-  let hit = QQ_LYRIC_SEARCH.get(ck);
-  if (!hit || Date.now() - hit.time > 10 * 60 * 1000) {
-    let list = [];
-    try { list = await qqSearchCore(kw); } catch (err) { list = []; }
-    const found = qqPickBestSong(list, song);
-    hit = { time: Date.now(), song: found };
-    QQ_LYRIC_SEARCH.set(ck, hit);
-    if (QQ_LYRIC_SEARCH.size > 300) { const k = QQ_LYRIC_SEARCH.keys().next().value; QQ_LYRIC_SEARCH.delete(k); }
+  let mid = song.songmid;
+  let sid = song.songid;
+  if (!mid) {
+    const kw = (String(song.name || '') + ' ' + String(song.artist || '')).trim();
+    if (!kw) return null;
+    const ck = 'kw:' + kw;
+    let hit = QQ_LYRIC_SEARCH.get(ck);
+    if (!hit || Date.now() - hit.time > 10 * 60 * 1000) {
+      let list = [];
+      try { list = await qqSearchCore(kw); } catch (err) { list = []; }
+      const found = qqPickBestSong(list, song);
+      hit = { time: Date.now(), song: found };
+      QQ_LYRIC_SEARCH.set(ck, hit);
+      if (QQ_LYRIC_SEARCH.size > 300) { const k = QQ_LYRIC_SEARCH.keys().next().value; QQ_LYRIC_SEARCH.delete(k); }
+    }
+    if (!hit.song) return null;
+    mid = hit.song.songmid;
+    sid = hit.song.songid;
   }
-  if (!hit.song) return null;
-  return qqLyricCore(hit.song.songmid, hit.song.songid, hit.song);
+  const out = await qqLyricCore(mid, sid, song);
+  if (out && typeof out === 'object' && mid) out._songmid = mid;
+  return out;
 }
 ipcMain.handle('qq-lyric', async (_e, songmid, songid) => qqLyricCore(songmid, songid));
 ipcMain.handle('qq-search', async (_e, kw) => qqSearchCore(kw));
@@ -843,6 +856,7 @@ ipcMain.handle('qq-search', async (_e, kw) => qqSearchCore(kw));
 const AMLL_OFFICIAL = 'https://amll-ttml-db.stevexmh.net';
 const AMLL_MIRRORS = [
   'https://gcore.jsdelivr.net/gh/steve-xmh/amll-ttml-db@main',
+  'https://cdn.jsdelivr.net/gh/steve-xmh/amll-ttml-db@main',
   'https://fastly.jsdelivr.net/gh/steve-xmh/amll-ttml-db@main',
   'https://ghfast.top/https://raw.githubusercontent.com/steve-xmh/amll-ttml-db/main'
 ];
