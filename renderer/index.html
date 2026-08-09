@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>YuMusic · 明日方舟风格沉浸式播放器</title>
+<link rel="stylesheet" href="style.css" />
+
+</head>
+<body>
+  <div id="introSplash" class="intro-splash">
+    <canvas id="introCanvas"></canvas>
+    <div class="intro-inner">
+      <div class="intro-logo" aria-hidden="true"></div>
+      <div class="intro-title">YuMusic</div>
+      <div class="intro-sub"><img class="intro-title-banner" src="assets/arknights/title-acid.png" alt="直到大地变成一颗酸橙" /></div>
+      <div class="intro-hint"><span class="hint-dot"></span>点击任意处进入<span class="hint-dot"></span></div>
+    </div>
+</div>
+  <canvas id="bg3d"></canvas>
+  <div id="ambientBg"></div>
+  <div id="stageGlow"></div>
+  <div id="vignette"></div>
+  <div id="arkDeco" aria-hidden="true">
+    <img class="ark-deco-logo" src="assets/arknights/logo-rhodes.png" alt="" />
+    <div class="ark-deco-lines"></div>
+    <div class="ark-deco-badge"><span>RHODES ISLAND</span><span>TERRA · 泰拉</span></div>
+  </div>
+
+  <header id="topbar">
+    <div class="logo">
+      <span class="logo-mark"></span>
+      <div class="logo-texts">
+        <span class="logo-name">YuMusic</span>
+        <span class="logo-sub">明日方舟风格 · 沉浸式音乐可视化</span>
+      </div>
+    </div>
+    <nav class="nav">
+      <button data-view="home" class="nav-btn active">首页</button>
+      <button data-view="search" class="nav-btn">搜索</button>
+      <button data-view="stage" class="nav-btn">正在播放</button>
+      <button id="localBtn" class="nav-btn">本地音乐</button>
+    </nav>
+    <div class="search-box">
+      <span class="search-ico"><svg class="ico" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.8-4.8"/></svg></span>
+      <input id="searchInput" type="text" placeholder="搜索歌曲 / 歌手 / 专辑" />
+      <button id="searchBtn" class="gradient-btn">搜索</button>
+    </div>
+    <div class="platforms">
+      <button class="pill active" data-platform="netease">网易云</button>
+      <button class="pill" data-platform="qq">QQ音乐</button>
+      <button class="pill" data-platform="qishui">汽水</button>
+    </div>
+    <div class="login-wrap">
+      <button id="loginBtn" class="login-btn"><svg class="ico" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7"/></svg><span id="loginText">登录</span></button>
+      <div id="accountPanel" class="account-panel hidden">
+        <div class="ap-plats">
+          <div class="ap-plat" data-p="netease">
+            <img id="apNetAv" class="ap-pav" alt="" />
+            <div class="ap-pinfo">
+              <div class="ap-pname" id="apNetName">网易云音乐 · 未登录</div>
+              <div class="ap-psub" id="apNetSub"></div>
+            </div>
+            <button class="ap-act" id="apNetBtn">登录</button>
+          </div>
+          <div class="ap-plat" data-p="qq">
+            <img id="apQqAv" class="ap-pav" alt="" />
+            <div class="ap-pinfo">
+              <div class="ap-pname" id="apQqName">QQ 音乐 · 未登录</div>
+              <div class="ap-psub" id="apQqSub"></div>
+            </div>
+            <button class="ap-act" id="apQqBtn">登录</button>
+          </div>
+          <div class="ap-plat" data-p="qishui">
+            <img class="ap-pav" src="assets/arknights/avatars/default-av.png" alt="" />
+            <div class="ap-pinfo">
+              <div class="ap-pname">汽水音乐</div>
+              <div class="ap-psub">暂无稳定社区接口</div>
+            </div>
+          </div>
+        </div>
+        <div id="apVipRow" class="ap-vip hidden">
+          <span class="ap-vip-tag">VIP</span>
+          <span id="apVipText"></span>
+        </div>
+        <div id="apQqVipRow" class="ap-vip qq hidden">
+          <span class="ap-vip-tag">VIP</span>
+          <span id="apQqVipText"></span>
+        </div>
+      </div>
+    </div>
+    <button id="topSettingsBtn" class="topbar-icon-btn" title="舞台设置">
+      <svg class="ico" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h10M18 8h2M4 16h4M12 16h8"/><circle cx="16" cy="8" r="1.8"/><circle cx="10" cy="16" r="1.8"/></svg>
+    </button>        <button id="arkThemeBtn" class="ark-theme-btn" title="明日方舟主题：全站配色与罗德岛元素">
+      <img id="arkThemeAv" class="ark-theme-av" src="assets/arknights/icons/mostma-av-2.png" alt="方舟" />
+      <span>方舟</span>
+    </button>
+    <div id="arkRoleMenu" class="ark-role-menu hidden">
+      <div class="ark-role-head">角色主题</div>
+      <button class="ark-role-item active" data-style="mostma2"><img src="assets/arknights/icons/mostma-av-2.png" alt="" /><span>莫斯提马</span></button>
+      <button class="ark-role-item" data-style="mostma-skin2"><img src="assets/arknights/icons/mostma-av-skin2.png" alt="" /><span>莫斯提马·皮肤</span></button>
+      <button class="ark-role-item" data-style="exu"><img src="assets/arknights/icons/exu-av-2.png" alt="" /><span>能天使</span></button>
+      <button class="ark-role-item" data-style="exu-skin2"><img src="assets/arknights/icons/exu-av-skin2.png" alt="" /><span>能天使·皮肤</span></button>
+      <button class="ark-role-item" data-style="off"><span>关闭明日方舟主题</span></button>
+    </div>
+    <div class="win-controls">
+      <button id="winMinBtn" class="win-btn" title="最小化"><svg class="ico" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+      <button id="winMaxBtn" class="win-btn" title="最大化 / 还原"><svg class="ico" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></button>
+      <button id="winCloseBtn" class="win-btn win-close" title="关闭"><svg class="ico" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+    </div>
+  </header>
+
+  <div id="statusLine">就绪</div>
+
+  <main id="main">
+    <section id="homeView" class="view">
+      <div class="home-scroll">
+        <div class="hero">
+          <div class="hero-glow"></div>
+          <div class="hero-main">
+            <div class="hero-tag">NETEASE CLOUD MUSIC · IMMERSIVE</div>
+            <div class="hero-title-card">
+              <img class="hero-title-banner" src="assets/arknights/title-acid.png" alt="直到大地变成一颗酸橙" />
+            </div>
+            <div class="hero-sub">YuMusic 将网易云、QQ、汽水音乐融为一体，歌词随节奏流动，特效随情绪漫游。</div>
+            <div class="hero-actions">
+              <button id="fmBtn" class="fm-btn"><span class="fm-dot"></span>私人FM</button>
+              <button id="likedHeroBtn" class="liked-btn"><svg class="ico" viewBox="0 0 24 24" width="15" height="15" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.3S4.2 16 2.4 11.6C1.2 8.6 3.2 5.4 6.3 5.4c1.9 0 3.6 1 4.6 2.6l1.1 1.7 1.1-1.7c1-1.6 2.7-2.6 4.6-2.6 3.1 0 5.1 3.2 3.9 6.2C19.8 16 12 20.3 12 20.3Z"/></svg><span>我的喜欢</span></button>
+              <button id="heroAiBtn" class="ai-hero-btn"><svg class="ico" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.2"/></svg><span>AI 助手</span></button>
+            </div>
+          </div>
+          <div class="hero-art">
+            <div class="hero-disc">
+              <div class="hero-disc-core"><img id="heroDiscAv" class="hero-disc-av" src="assets/arknights/icons/mostma-av-2.png" alt="" /></div>
+            </div>
+          </div>
+        </div>
+        <div class="history-section hidden" id="historySection">
+          <div class="section-head">
+            <span class="section-title">最近播放</span>
+            <span class="section-more" id="historyClearBtn">清空 · HISTORY</span>
+          </div>
+          <div id="historyStrip" class="history-strip"></div>
+        </div>
+        <div class="section-head">
+          <span class="section-title">为你推荐</span>
+          <span class="section-more">精选歌单 · PLAYLISTS</span>
+        </div>
+        <div id="playlistGrid" class="playlist-grid"></div>
+      </div>
+    </section>
+
+    <section id="searchView" class="view hidden">
+      <div id="emptyState" class="empty">
+        <div class="empty-title">搜索你喜欢的音乐</div>
+        <div class="empty-hint">输入关键词后回车，双击歌曲开始播放</div>
+      </div>
+      <div id="listHeader" class="list-header hidden">
+        <div class="list-header-glow"></div>
+        <div class="list-header-main">
+          <div class="list-header-tag" id="listHeaderTag">PLAYLIST</div>
+          <div class="list-header-title" id="listHeaderTitle">歌单</div>
+          <div class="list-header-sub" id="listHeaderSub"></div>
+        </div>
+        <button id="listPlayAllBtn" class="list-play-all"><svg class="ico" viewBox="0 0 24 24" width="15" height="15" fill="currentColor" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 4 20 12 6 20 6 4"/></svg>播放全部</button>
+      </div>
+      <ul id="songList"></ul>
+    </section>
+
+    <section id="stageView" class="view hidden bg-roam">
+      <canvas id="shaderBg"></canvas>
+      <div id="wallpaperLayer">
+        <canvas id="wallpaperCanvas"></canvas>
+        <video id="wallpaperVideo" loop muted playsinline preload="auto"></video>
+        <video id="wallpaperVideoBlur" loop muted playsinline preload="auto" aria-hidden="true"></video>
+        <img id="wallpaperImg" alt="" />
+        <img id="wallpaperImgBlur" alt="" aria-hidden="true" />
+        <div class="wallpaper-shade"></div>
+      </div>
+      <div id="stageCoverBg"></div>
+      <div id="arkBg"></div>
+      <div id="stageBreathe"></div>
+      <div id="fluidBg"></div>
+      <div id="foliaOverlay"></div>
+      <div id="stageWave"></div>
+      <canvas id="snStaff"></canvas>
+      <canvas id="sparkCanvas"></canvas>
+      <canvas id="mrStage"></canvas>
+      <div id="sonnetHost"></div>
+      <div id="sonnetRoleEmblem" aria-hidden="true">
+        <span class="sre-av"></span>
+        <span class="sre-tag">RHODES ISLAND</span>
+      </div>
+      <div id="lyricReadability"></div>
+      <div id="arkBrand" aria-hidden="true">
+        <img class="ark-logo" src="assets/arknights/logo-rhodes.png" alt="罗德岛" />
+        <div class="ark-tag">ARKNIGHTS · 明日方舟</div>
+        <div class="ark-ost"><img src="assets/arknights/ost-acid.png" alt="OST" /></div>
+        <div class="ark-ms"><img src="assets/arknights/icons/logo_monster_siren.png" alt="塞壬唱片" /><em>MONSTER SIREN</em></div>
+      </div>
+
+      <div id="stageDrag"></div>
+      <button id="stageBack" class="stage-back" title="返回"><svg class="ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5.5 8.5 12l6.5 6.5"/></svg></button>
+      <button id="bgToggle" class="stage-tool-btn" title="背景设置"><svg class="ico" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h10M18 8h2M4 16h4M12 16h8"/><circle cx="16" cy="8" r="1.8"/><circle cx="10" cy="16" r="1.8"/></svg></button>
+<button id="aiToggle" class="stage-tool-btn" title="AI 助手"><svg class="ico" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.2"/></svg></button>
+
+
+      <div id="stageInfo">
+        <div id="stageTitle">未在播放</div>
+        <div id="stageArtist">搜索歌曲并双击播放</div>
+        <div id="stageStatus"></div>
+      </div>
+      <div id="lyricSrcBadge" class="lyric-src-badge hidden"></div>
+
+      <div id="stageLyrics">
+        <div id="lyrics">
+          <div id="lyricFloat"></div>
+        </div>
+        <div id="stageSubtitle"></div>
+        <div id="lyricLoading" class="lyric-loading hidden" title="">
+          <div class="spinner sm"></div>
+          <span id="lyricLoadingText">歌词加载中…</span>
+        </div>
+      </div>
+
+      <div id="stageProgress"><div id="stageProgressFill"></div></div>
+      <div id="stageLoading" class="stage-loading hidden">
+        <div class="spinner"></div>
+        <div class="stage-loading-text" id="stageLoadingText">解析播放地址…</div>
+      </div>
+      <div id="stageBuffering" class="stage-buffering hidden">
+        <span class="spinner sm"></span>
+        <span id="stageBufferingText">缓冲中…</span>
+      </div>
+      <div id="gifFxLayer" class="gif-fx-layer hidden">
+        <img id="gifFxImg" class="gif-fx-img" alt="" draggable="false" />
+      </div>
+    </section>
+
+      <div id="aiPanel" class="ai-panel hidden">
+        <div class="ai-panel-head">
+          <span class="ai-panel-title">AI 助手</span>
+          <button id="aiPanelClose" class="ai-panel-close"><svg class="ico" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+        </div>
+        <div class="ai-ctx-row">
+          <button class="ai-chip" data-ctx="liked">我的喜欢</button>
+          <button class="ai-chip" data-ctx="hot">热曲排行</button>
+          <button class="ai-chip" data-ctx="daily">每日推荐</button>
+          <button class="ai-chip" data-ctx="playlist">生成歌单</button>
+          <button class="ai-chip" data-ctx="explain">歌曲解读</button>
+          <button class="ai-chip" data-ctx="mood">心情电台</button>
+          <button class="ai-chip" data-ctx="know">音乐冷知识</button>
+        </div>
+        <div id="aiMessages" class="ai-messages"></div>
+        <div class="ai-compose">
+          <textarea id="aiInput" class="ai-textarea" rows="1" placeholder="问问 AI：根据我的喜欢推荐 10 首歌…" spellcheck="false"></textarea>
+          <button id="aiSendBtn" class="ai-send" type="button">发送</button>
+        </div>
+      </div>
+  </main>
+
+        <div id="bgPanel" class="bg-panel hidden">
+        <div class="bg-panel-head">
+          <span class="bg-panel-title">舞台设置</span>
+          <button id="bgPanelClose" class="bg-panel-close"><svg class="ico" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+        </div>
+        <div class="bg-panel-tabs">
+          <button class="bg-tab active" data-tab="fx">特效</button>
+          <button class="bg-tab" data-tab="bg">背景</button>
+          <button class="bg-tab" data-tab="more">更多</button>
+          <button class="bg-tab" data-tab="ai">AI</button>
+        </div>
+        <div class="bg-tab-page" data-page="fx">
+          <div class="bg-section">特效模式</div>
+          <div id="lyricModeBar">
+            <button class="mode-btn active" data-mode="sonnet">商籁</button>
+            <button class="mode-btn" data-mode="stage">星海</button>
+          </div>
+          <div class="mr-mode-hint" id="mrModeHint">商籁 · 逐字歌词电影级舞台，随歌曲自动编排</div>
+          <div class="bg-row mr-preset-row hidden" id="mrPresetRow">
+            <span class="bg-label">星海预设</span>
+            <div class="preset-grid" id="mrPresetSeg">
+              <button data-preset="0" class="active">Emily</button>
+              <button data-preset="1">滚筒</button>
+              <button data-preset="2">星球</button>
+              <button data-preset="3">虚空</button>
+              <button data-preset="4">唱片</button>
+              <button data-preset="5">星河</button>
+              <button data-preset="6">安魂</button>
+              <button data-preset="7">音域</button>
+              <button data-preset="8">音域2</button>
+            </div>
+          </div>
+          <div class="bg-row mr-param-row hidden" id="mrParamRow">
+            <div class="mr-param-head">
+              <span class="mr-param-title">特效参数</span>
+              <button id="mrParamReset" class="mr-param-reset">重置</button>
+            </div>
+            <div class="mr-param-list" id="mrParamList">
+              <div class="mr-param-group">
+                <div class="mr-param-group-title">视觉</div>
+                <label class="mr-param"><span>粒子密度</span><input type="range" data-p="density" min="0.8" max="1.6" step="0.01"><b data-v="density">1.55</b></label>
+                <label class="mr-param"><span>粒子大小</span><input type="range" data-p="point" min="0.5" max="2.2" step="0.01"><b data-v="point">1.0</b></label>
+                <label class="mr-param"><span>流速</span><input type="range" data-p="speed" min="0.2" max="2.5" step="0.01"><b data-v="speed">1.0</b></label>
+                <label class="mr-param"><span>扭曲</span><input type="range" data-p="twist" min="0" max="0.6" step="0.01"><b data-v="twist">0</b></label>
+                <label class="mr-param"><span>色彩</span><input type="range" data-p="color" min="0.5" max="2" step="0.01"><b data-v="color">1.1</b></label>
+                <label class="mr-param"><span>光效</span><input type="range" data-p="bloom" min="0" max="1.6" step="0.01"><b data-v="bloom">0.62</b></label>
+                <label class="mr-param"><span>缩放</span><input type="range" data-p="zoom" min="2.4" max="14" step="0.1"><b data-v="zoom">6.6</b></label>
+              </div>
+              <div class="mr-param-group">
+                <div class="mr-param-group-title">交互</div>
+                <div class="mr-param mr-param-switch" title="开启后歌词随鼠标移动而跟手">
+                <span class="mr-param-switch-text">歌词跟手<em>歌词随鼠标移动</em></span>
+                <button class="switch on" id="mrLyricFollowToggle" role="switch" aria-checked="true" type="button"><span></span></button>
+              </div>
+                <label class="mr-param"><span>鼠标推挤</span><input type="range" data-p="mousePush" min="0" max="2" step="0.01"><b data-v="mousePush">1</b></label>
+                <label class="mr-param"><span>拖拽灵敏度</span><input type="range" data-p="spinSens" min="0.2" max="3" step="0.01"><b data-v="spinSens">1</b></label>
+              </div>
+              <div class="mr-param-group">
+                <div class="mr-param-group-title">节奏</div>
+                <label class="mr-param"><span>音乐响应</span><input type="range" data-p="audioSens" min="0.2" max="2.5" step="0.01"><b data-v="audioSens">1</b></label>
+                <label class="mr-param"><span>时间流速</span><input type="range" data-p="timeScale" min="0.3" max="3" step="0.01"><b data-v="timeScale">1</b></label>
+              </div>
+            <div class="mr-param-hint">拖拽旋转粒子 · 滚轮缩放 · 鼠标移动视差 · 双击回正</div>
+          </div>
+        </div>
+        </div>
+                  <div class="bg-tab-page hidden" data-page="bg">
+          <div class="bg-section">背景</div>
+          <div class="bg-row">
+            <span class="bg-label">背景模式</span>
+            <div class="seg" id="bgModeSeg">
+              <button data-bg="roam" class="active">漫游</button>
+              <button data-bg="fade">渐隐</button>
+              <button data-bg="static">静态</button>
+              <button data-bg="arknights">方舟</button>
+              <button data-bg="wallpaper">壁纸</button>
+            </div>
+          </div>
+          <div class="bg-row" id="bgArknightsRow">
+            <span class="bg-label">方舟背景</span>
+            <div class="art-grid" id="bgArtSeg">
+              <button data-art="0" title="音律联觉 · 梦人"><img src="assets/arknights/bg/bg-kv-mengren.jpg" alt="梦人"/></button>
+              <button data-art="1" title="音律联觉 · 时序花圃"><img src="assets/arknights/bg/bg-kv-shixu.jpg" alt="时序花圃"/></button>
+              <button data-art="2" title="音律联觉 · 移星桂冠"><img src="assets/arknights/bg/bg-kv-guiguan.jpg" alt="移星桂冠"/></button>
+              <button data-art="3" title="音律联觉 · 愚夜密函"><img src="assets/arknights/bg/bg-kv-yuye.jpg" alt="愚夜密函"/></button>
+              <button data-art="4" title="音律联觉 · 冰纹玉釉"><img src="assets/arknights/bg/bg-kv-bingwen.jpg" alt="冰纹玉釉"/></button>
+              <button data-art="5" title="音律联觉 · FIVE超新星"><img src="assets/arknights/bg/bg-kv-supernova.jpg" alt="FIVE超新星"/></button>
+              <button data-art="6" title="音律联觉 · 行者"><img src="assets/arknights/bg/bg-kv-xingzhe.jpg" alt="行者"/></button>
+              <button data-art="7" title="音律联觉 · 遗君"><img src="assets/arknights/bg/bg-kv-yijun.jpg" alt="遗君"/></button>
+              <button data-art="8" title="音律联觉 · 浮生听风"><img src="assets/arknights/bg/bg-kv-fusheng.jpg" alt="浮生听风"/></button>
+            </div>
+          </div>
+          <div id="bgWallpaperRow" style="display:none">
+            <div class="bg-section bg-section-inline">内置壁纸</div>
+            <div class="seg" id="wallpaperSeg">
+              <button data-wall="stardust" class="active">星尘夜航</button>
+              <button data-wall="mist">晨雾山谷</button>
+              <button data-wall="aurora">极光薄暮</button>
+              <button data-wall="moonlight">月光海</button>
+              <button data-wall="firefly">森林萤火</button>
+              <button data-wall="we" id="wallWeBtn">壁纸引擎</button>
+            </div>
+            <div class="we-wall-head">
+              <span class="bg-label">Wallpaper Engine 壁纸库</span>
+              <span class="we-wall-actions">
+                <button id="weWallFollow" class="mini-btn wide" title="读取壁纸引擎当前正在使用的壁纸并应用">跟随当前</button>
+                <button id="weWallRefresh" class="mini-btn wide">刷新</button>
+              </span>
+            </div>
+            <div class="we-wall-grid" id="weWallpaperGrid"></div>
+            <div class="bg-row-inline">
+              <span class="bg-label">强度</span>
+              <label class="mr-param"><input type="range" id="wallpaperLevel" min="0.4" max="1.5" step="0.05" value="1"><b id="wallpaperLevelV">1.00</b></label>
+            </div>
+          </div>
+          <div class="bg-row char-row">
+            <span class="bg-label">角色风格</span>
+            <div class="char-grid" id="bgStyleSeg">
+              <button data-style="off" class="char-card"><i class="cc-dot" style="--cc1:#8b93a7;--cc2:#5b6478"></i><span>默认</span></button>
+              <button data-style="mostma2" class="char-card active"><i class="cc-dot" style="--cc1:#e8c76a;--cc2:#3aa0ff"></i><span>莫斯提马</span></button>
+              <button data-style="mostma-skin2" class="char-card"><i class="cc-dot" style="--cc1:#bfe9ff;--cc2:#9aa8ff"></i><span>莫斯提马·时装</span></button>
+              <button data-style="exu" class="char-card"><i class="cc-dot" style="--cc1:#ff6b7a;--cc2:#ffd9e2"></i><span>能天使</span></button>
+              <button data-style="exu-skin2" class="char-card"><i class="cc-dot" style="--cc1:#ffb347;--cc2:#ff6b7a"></i><span>能天使·时装</span></button>
+            </div>
+          </div>
+                    <div class="bg-divider"></div>
+          <div class="bg-row">
+            <span class="bg-label">节拍响应</span>
+            <button class="switch on" id="bgBeatBtn"><span></span></button>
+          </div>
+          <div class="bg-row">
+            <span class="bg-label">字幕背景</span>
+            <button class="switch on" id="bgReadBtn"><span></span></button>
+          </div>
+          <div class="bg-row">
+            <span class="bg-label">歌词萌宠</span>
+            <button class="switch on" id="gifFxSw"><span></span></button>
+          </div>
+        </div>
+        <div class="bg-tab-page hidden" data-page="more">
+          <div class="bg-section">性能与同步</div>
+          <div class="bg-row">
+            <span class="bg-label">帧数</span>
+            <div class="seg" id="frameCapSeg">
+              <button data-fps="30">30</button>
+              <button data-fps="60" class="active">60</button>
+              <button data-fps="120">120</button>
+            </div>
+          </div>
+          <button id="lyricOffsetChip" class="lyric-offset-chip hidden" title="歌词同步偏移，点击归零。快捷键 [ ] 微调 ±0.1s，Shift+[ ] 精细 ±0.02s，0 归零">
+            <span class="chip-label">歌词同步</span><span id="lyricOffsetText">0.00s</span>
+          </button>
+        </div>
+        <div class="bg-tab-page hidden" data-page="ai">
+          <div class="bg-section">连接配置</div>
+          <div class="ai-card">
+            <div class="bg-row ai-field">
+              <span class="bg-label">接口地址</span>
+              <input id="aiBaseInput" class="ai-input" type="text" placeholder="https://api.deepseek.com" spellcheck="false" />
+            </div>
+            <div class="bg-row ai-field">
+              <span class="bg-label">API Key</span>
+              <span class="ai-key-wrap">
+                <input id="aiKeyInput" class="ai-input" type="password" placeholder="sk-..." spellcheck="false" />
+                <button id="aiKeyToggle" class="ai-key-toggle" type="button">显示</button>
+              </span>
+            </div>
+            <div class="bg-row ai-field">
+              <span class="bg-label">模型</span>
+              <input id="aiModelInput" class="ai-input" type="text" list="aiModelList" placeholder="deepseek-chat / deepseek-reasoner / 自定义模型" spellcheck="false" />
+              <datalist id="aiModelList"></datalist>
+            </div>
+            <div class="bg-row ai-presets">
+              <span class="bg-label">快速填充</span>
+              <div class="ai-preset-seg">
+                <button class="ai-preset" data-base="https://api.deepseek.com" data-model="">DeepSeek</button>
+                <button class="ai-preset" data-base="https://api.openai.com/v1" data-model="">OpenAI</button>
+                <button class="ai-preset" data-base="http://127.0.0.1:11434/v1" data-model="">本地 Ollama</button>
+              </div>
+            </div>
+          </div>
+          <div class="ai-actions">
+            <button id="aiTestBtn" class="gradient-btn small">测试连通</button>
+            <button id="aiSaveBtn" class="gradient-btn small">保存配置</button>
+          </div>
+          <div id="aiTestResult" class="ai-test-result hidden"></div>
+          <div class="bg-divider"></div>
+          <div class="bg-section">功能</div>
+          <div class="bg-row">
+            <span class="bg-label">AI 助手</span>
+            <button class="switch off" id="aiEnableBtn"><span></span></button>
+          </div>
+          <div class="ai-hint">AI 可读取登录账号的「我的喜欢 / 热曲排行 / 每日推荐」，在播放页右下角呼出 AI 助手进行提问。</div>
+        </div>
+      </div>
+
+
+<footer id="playerbar">
+    <div class="pb-left">
+      <div id="pbCover" class="mini-cover">♪</div>
+      <span id="pbLoading" class="pb-loading hidden" title="加载中"><span class="spinner sm"></span></span>
+      <div class="pb-meta">
+        <div id="pbTitle">未在播放</div>
+        <div id="pbArtist"></div>
+      </div>
+    </div>
+    <div class="pb-center">
+      <div class="pb-controls">
+        <button id="prevBtn" class="ctrl" disabled><svg class="ico" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5.5v13M18.5 6.6c0-.9-1-1.4-1.7-.9l-8.4 5.4c-.7.4-.7 1.4 0 1.9l8.4 5.4c.7.4 1.7-.1 1.7-.9V6.6Z"/></svg></button>
+        <button id="playBtn" class="ctrl big" disabled><svg class="ico" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 5.8v12.4c0 .9 1 1.5 1.8 1L20 13c.8-.5.8-1.6 0-2.1L10.3 4.8c-.8-.5-1.8.1-1.8 1Z"/></svg></button>
+        <button id="nextBtn" class="ctrl" disabled><svg class="ico" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 5.5v13M5.5 6.6c0-.9 1-1.4 1.7-.9l8.4 5.4c.7.4.7 1.4 0 1.9l-8.4 5.4c-.7.4-1.7-.1-1.7-.9V6.6Z"/></svg></button>
+      </div>
+      <div class="pb-progress">
+        <span id="curTime">00:00</span>
+        <input id="progress" type="range" min="0" max="100" value="0" disabled />
+        <span id="totalTime">00:00</span>
+      </div>
+    </div>
+    <div class="pb-right">
+      <button id="fxBtn" class="mini-btn" title="声音 &amp; 定时（低音/高音/空间感/睡眠）"><svg class="ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12a8.5 8.5 0 0 1 17 0"/><path d="M7 12a5 5 0 0 1 10 0"/><path d="M10 12a2 2 0 0 1 4 0"/></svg></button>
+      <button id="miniBtn" class="mini-btn" title="迷你模式（置顶小窗）"><svg class="ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2.5"/><path d="M4 9.5h16M8.5 5v4.5M4 12.5h16"/></svg></button>
+      <button id="playModeBtn" class="mini-btn" title="播放模式：顺序播放"></button>
+      <button id="queueBtn" class="mini-btn" title="播放队列"><svg class="ico" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 11h16M4 16h10"/></svg></button>
+      <button id="likeBtn" class="mini-btn" title="收藏 / 取消收藏"><svg class="ico" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.3S4.2 16 2.4 11.6C1.2 8.6 3.2 5.4 6.3 5.4c1.9 0 3.6 1 4.6 2.6l1.1 1.7 1.1-1.7c1-1.6 2.7-2.6 4.6-2.6 3.1 0 5.1 3.2 3.9 6.2C19.8 16 12 20.3 12 20.3Z"/></svg></button>
+      <button id="deskLyricBtn" class="mini-btn" title="桌面歌词（置顶迷你窗口）"><svg class="ico" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="12" rx="2"/><path d="M9.5 21h5M12 17.5V21"/><path d="M7 9.5h7M7 12.5h10"/></svg></button>
+      <button id="volBtn" class="mini-btn" title="音量（声音面板）"><svg class="ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5v5h3.2l4.3 3.5V6L7.2 9.5H4Z"/><path d="M15.5 9a4.6 4.6 0 0 1 0 6M18 6.8a8 8 0 0 1 0 10.4"/></svg></button>
+    </div>
+  </footer>
+
+  <div id="extraPanel" class="extra-panel hidden">
+    <div class="extra-head">
+      <span class="extra-title">声音 &amp; 定时</span>
+      <button id="extraClose" class="extra-close"><svg class="ico" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+    </div>
+    <div class="extra-row vol-row">
+      <span class="extra-label">音量</span>
+      <div class="extra-vol">
+        <button id="volMuteBtn" class="vol-mute-btn" title="静音 / 取消静音"><svg class="ico" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5v5h3.2l4.3 3.5V6L7.2 9.5H4Z"/><path d="M15.5 9a4.6 4.6 0 0 1 0 6M18 6.8a8 8 0 0 1 0 10.4"/></svg></button>
+        <input id="volume" type="range" min="0" max="1" step="0.01" value="0.8" />
+        <span id="volPct" class="vol-pct">80%</span>
+      </div>
+    </div>
+    <div class="extra-row">
+      <span class="extra-label">播放速度</span>
+      <div class="seg" id="speedSeg">
+        <button data-rate="0.75">0.75x</button>
+        <button data-rate="1" class="active">1x</button>
+        <button data-rate="1.25">1.25x</button>
+        <button data-rate="1.5">1.5x</button>
+        <button data-rate="2">2x</button>
+      </div>
+    </div>
+    <div class="extra-row">
+      <span class="extra-label">低音增强</span>
+      <button class="switch" id="fxBassSw"><span></span></button>
+    </div>
+    <div class="extra-row">
+      <span class="extra-label">高音增强</span>
+      <button class="switch" id="fxTrebleSw"><span></span></button>
+    </div>
+    <div class="extra-row">
+      <span class="extra-label">空间感</span>
+      <button class="switch" id="fxSpaceSw"><span></span></button>
+    </div>
+    <div class="extra-row">
+      <span class="extra-label">音质</span>
+      <div class="seg" id="qualitySeg">
+        <button data-quality="standard">标准</button>
+        <button data-quality="higher">较高</button>
+        <button data-quality="exhigh">极高</button>
+        <button data-quality="lossless">无损</button>
+        <button data-quality="hires">Hi-Res</button>
+      </div>
+    </div>
+    <div class="extra-row">
+      <span class="extra-label">睡眠定时</span>
+      <div class="seg" id="timerSeg">
+        <button data-min="15">15分</button>
+        <button data-min="30">30分</button>
+        <button data-min="60">60分</button>
+        <button data-min="90">90分</button>
+        <button data-min="0">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="queuePanel" class="queue-panel hidden">
+    <div class="queue-head">
+      <span class="queue-title">播放队列</span>
+      <button id="queueClose" class="queue-close"><svg class="ico" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+    </div>
+    <div id="queueList" class="queue-list"></div>
+  </div>
+
+  <audio id="audio" preload="auto"></audio>
+  <input type="file" id="fileInput" accept="audio/*" hidden />
+
+<button id="qqEmbedClose" class="qq-embed-close hidden" title="关闭 QQ 登录"><svg class="ico" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 6 12 12M18 6 6 18"/></svg><span>关闭 QQ 登录</span></button>
+
+  <div id="loginPanel" class="login-panel hidden">
+    <div class="login-panel-head">
+      <span id="loginPanelTitle" class="login-panel-title">登录</span>
+      <div class="login-panel-actions">
+        <button id="loginPanelWindow" class="login-panel-window" title="在独立窗口打开">新窗口</button>
+        <button id="loginPanelClose" class="login-panel-close" title="关闭"><svg class="ico" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+      </div>
+    </div>
+    <div class="login-panel-body">
+      <div id="ncmQrBox" class="ncm-qr-box hidden">
+        <div class="ncm-qr-wrap">
+          <img id="ncmQrImg" class="ncm-qr-img" alt="扫码登录" draggable="false" />
+          <div id="ncmQrMask" class="ncm-qr-mask hidden"><span id="ncmQrMaskText"></span></div>
+        </div>
+        <div id="ncmQrStatus" class="ncm-qr-status">请使用网易云音乐 App 扫码</div>
+        <button id="ncmQrRefresh" class="ncm-qr-refresh hidden">刷新二维码</button>
+      </div>
+      <iframe id="loginFrame" class="login-frame" referrerpolicy="no-referrer"></iframe>
+    </div>
+    <div class="login-panel-foot">
+      <span id="loginPanelHint" class="login-panel-hint">登录完成后将自动同步账号信息</span>
+    </div>
+  </div>
+  <script src="sonnet.js"></script>
+  <script src="app.js"></script>
+
+
+</body>
+</html>

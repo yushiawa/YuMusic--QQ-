@@ -1,0 +1,18 @@
+# ===== YuMusic 基线 .gitignore（白名单模式）=====
+# 默认忽略根目录所有内容，仅保留运行/构建必需的文件。
+# 新增根目录源码时需在此显式放行（!xxx）。
+/*
+!.gitignore
+!main.js
+!preload.js
+!preload-lyric.js
+!mini-preload.js
+!qq-lyric-crypto.js
+!package.json
+!package-lock.json
+!README.md
+!启动YuMusic.bat
+!scripts/
+!scripts/**
+!renderer/
+!renderer/**

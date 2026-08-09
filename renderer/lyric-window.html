@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; background: transparent; }
+  body {
+    font-family: "HarmonyOS Sans SC", "Microsoft YaHei UI", "PingFang SC", sans-serif;
+    color: #fff; user-select: none; -webkit-font-smoothing: antialiased;
+  }
+  #wrap {
+    position: absolute; inset: 6px; border-radius: 14px;
+    background: linear-gradient(150deg, rgba(20,24,36,0.94), rgba(12,14,22,0.9));
+    border: 1px solid rgba(255,255,255,0.16);
+    backdrop-filter: blur(10px) saturate(1.2);
+    -webkit-backdrop-filter: blur(10px) saturate(1.2);
+    box-shadow: 0 6px 22px rgba(0,0,0,0.42);
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 0 18px; overflow: hidden;
+  }
+  #wrap::before {
+    content: ''; position: absolute; top: 0; left: 18px; right: 18px; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(103,232,249,0.55), rgba(167,139,250,0.55), transparent);
+  }
+  #meta { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  #cover { width: 34px; height: 34px; border-radius: 8px; flex: none; overflow: hidden; background: linear-gradient(135deg, #1c2434, #10151f); display: flex; align-items: center; justify-content: center; color: #3b4359; font-size: 14px; }
+  #cover img { width: 100%; height: 100%; object-fit: cover; }
+  #song { min-width: 0; }
+  #title { font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #artist { font-size: 10px; color: rgba(255,255,255,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+  #lyric { font-size: 19px; font-weight: 700; letter-spacing: 1px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 8px rgba(0,0,0,0.6); position: relative; }
+  #lyric .fill { position: absolute; inset: 0; background: linear-gradient(100deg, #67e8f9, #a78bfa 70%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; width: 0%; overflow: hidden; white-space: nowrap; }
+  #trans { margin-top: 3px; font-size: 12px; color: rgba(255,255,255,0.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 16px; }
+  #bar { position: absolute; left: 18px; right: 18px; bottom: 10px; height: 2px; border-radius: 1px; background: rgba(255,255,255,0.12); }
+  #barFill { height: 100%; border-radius: 1px; background: linear-gradient(90deg, #22d3ee, #a78bfa); width: 0%; transition: width .25s linear; }
+  #empty { text-align: center; color: rgba(255,255,255,0.4); font-size: 13px; }
+  .hidden { display: none !important; }
+  body.ark-theme #wrap { border-color: rgba(58,160,255,0.3); }
+  body.ark-theme #wrap::before { background: linear-gradient(90deg, transparent, rgba(58,160,255,0.6), rgba(232,199,106,0.6), transparent); }
+  body.ark-theme #lyric .fill { background: linear-gradient(100deg, #8cc8ff, #e8c76a 70%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  body.ark-theme #barFill { background: linear-gradient(90deg, #3aa0ff, #e8c76a); }
+  body[data-btn-style="mostma2"] #wrap { border-color: rgba(232,199,106,0.35); }
+  body[data-btn-style="mostma2"] #wrap::before { background: linear-gradient(90deg, transparent, rgba(232,199,106,0.65), rgba(58,160,255,0.65), transparent); }
+  body[data-btn-style="mostma2"] #lyric .fill { background: linear-gradient(100deg, #f5d87e, #3aa0ff 70%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  body[data-btn-style="mostma2"] #barFill { background: linear-gradient(90deg, #e8c76a, #3aa0ff); }
+  body[data-btn-style="mostma-skin2"] #wrap { border-color: rgba(191,233,255,0.35); }
+  body[data-btn-style="mostma-skin2"] #wrap::before { background: linear-gradient(90deg, transparent, rgba(191,233,255,0.6), rgba(154,168,255,0.6), transparent); }
+  body[data-btn-style="mostma-skin2"] #lyric .fill { background: linear-gradient(100deg, #dff4ff, #9aa8ff 70%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  body[data-btn-style="mostma-skin2"] #barFill { background: linear-gradient(90deg, #bfe9ff, #9aa8ff); }
+  body[data-btn-style="exu"] #wrap { border-color: rgba(255,107,122,0.4); }
+  body[data-btn-style="exu"] #wrap::before { background: linear-gradient(90deg, transparent, rgba(255,107,122,0.65), rgba(255,217,226,0.65), transparent); }
+  body[data-btn-style="exu"] #lyric .fill { background: linear-gradient(100deg, #ff9aa6, #ffd9e2 70%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  body[data-btn-style="exu"] #barFill { background: linear-gradient(90deg, #ff6b7a, #ffd9e2); }
+  body[data-btn-style="exu-skin2"] #wrap { border-color: rgba(255,179,71,0.4); }
+  body[data-btn-style="exu-skin2"] #wrap::before { background: linear-gradient(90deg, transparent, rgba(255,179,71,0.65), rgba(255,107,122,0.65), transparent); }
+  body[data-btn-style="exu-skin2"] #lyric .fill { background: linear-gradient(100deg, #ffd9a8, #ff6b7a 70%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  body[data-btn-style="exu-skin2"] #barFill { background: linear-gradient(90deg, #ffb347, #ff6b7a); }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="meta">
+      <div id="cover">♪</div>
+      <div id="song"><div id="title">YuMusic</div><div id="artist">桌面歌词</div></div>
+    </div>
+    <div id="lyric"><span id="lyricText">等待播放…</span><span class="fill" id="lyricFill"></span></div>
+    <div id="trans"></div>
+    <div id="bar"><div id="barFill"></div></div>
+  </div>
+  <script src="lyric-window.js"></script>
+</body>
+</html>

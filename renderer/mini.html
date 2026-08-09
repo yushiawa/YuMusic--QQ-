@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>YuMusic · 迷你模式</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+  html, body { height: 100%; overflow: hidden; background: transparent; }
+  body {
+    font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+    color: #e6eaf2;
+    background: linear-gradient(135deg, rgba(16,20,32,0.98), rgba(10,12,20,0.98));
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 14px;
+    -webkit-app-region: drag;
+  }
+  #wrap { display: flex; align-items: center; gap: 12px; height: 100%; padding: 0 12px; }
+  #cover { width: 64px; height: 64px; border-radius: 12px; flex: none; overflow: hidden; background: rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: center; font-size: 22px; color: rgba(255,255,255,0.35); box-shadow: 0 4px 14px rgba(0,0,0,0.4); }
+  #cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  #meta { flex: 1; min-width: 0; }
+  #title { font-size: 13.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.3px; }
+  #artist { font-size: 11px; color: #8b93a8; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #timeRow { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
+  #cur { font-size: 10px; color: #6d7689; font-variant-numeric: tabular-nums; min-width: 30px; }
+  #bar { flex: 1; height: 3px; border-radius: 2px; background: rgba(255,255,255,0.12); overflow: hidden; }
+  #barFill { height: 100%; width: 0%; border-radius: 2px; background: linear-gradient(90deg, #22d3ee, #a78bfa); box-shadow: 0 0 8px rgba(34,211,238,0.6); transition: width .3s linear; }
+  #dur { font-size: 10px; color: #6d7689; font-variant-numeric: tabular-nums; min-width: 30px; text-align: right; }
+  #btns { display: flex; align-items: center; gap: 4px; flex: none; -webkit-app-region: no-drag; }
+  .b {
+    width: 32px; height: 32px; border: none; border-radius: 50%; cursor: pointer;
+    background: transparent; color: #aab2c5; display: flex; align-items: center; justify-content: center;
+    transition: background .18s, color .18s, transform .12s;
+  }
+  .b:hover { background: rgba(255,255,255,0.1); color: #fff; transform: scale(1.08); }
+  .b.main { background: rgba(34,211,238,0.16); color: #67e8f9; }
+  .b.main:hover { background: rgba(34,211,238,0.28); }
+  .b.close:hover { background: rgba(255,95,126,0.22); color: #ff8fa3; }
+  svg { display: block; }
+  .eq { display: flex; align-items: flex-end; gap: 2px; height: 14px; opacity: 0; transition: opacity .2s; margin-right: 2px; }
+  .eq.on { opacity: 1; }
+  .eq i { width: 3px; border-radius: 2px; background: linear-gradient(180deg, #67e8f9, #a78bfa); animation: eqb 0.9s ease-in-out infinite; }
+  .eq i:nth-child(1) { height: 60%; animation-delay: 0s; }
+  .eq i:nth-child(2) { height: 100%; animation-delay: .15s; }
+  .eq i:nth-child(3) { height: 45%; animation-delay: .3s; }
+  .eq i:nth-child(4) { height: 80%; animation-delay: .45s; }
+  @keyframes eqb { 0%,100% { transform: scaleY(0.5); } 50% { transform: scaleY(1); } }
+  #eqWrap { position: absolute; right: 74px; bottom: 6px; }
+  body.ark-theme #barFill { background: linear-gradient(90deg, #3aa0ff, #e8c76a); box-shadow: 0 0 8px rgba(58,160,255,0.6); }
+  body.ark-theme .b.main { background: rgba(58,160,255,0.18); color: #8cc8ff; }
+  body.ark-theme .b.main:hover { background: rgba(58,160,255,0.3); }
+  body.ark-theme .eq i { background: linear-gradient(180deg, #3aa0ff, #e8c76a); }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="cover">♪</div>
+    <div id="meta">
+      <div id="title">未在播放</div>
+      <div id="artist">YuMusic · 迷你模式</div>
+      <div id="timeRow">
+        <span id="cur">00:00</span>
+        <div id="bar"><div id="barFill"></div></div>
+        <span id="dur">00:00</span>
+      </div>
+    </div>
+    <div id="btns">
+      <button class="b" id="prevBtn" title="上一首">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5.5v13M18.5 6.6c0-.9-1-1.4-1.7-.9l-8.4 5.4c-.7.4-.7 1.4 0 1.9l8.4 5.4c.7.4 1.7-.1 1.7-.9V6.6Z"/></svg>
+      </button>
+      <button class="b main" id="playBtn" title="播放 / 暂停">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 5.8v12.4c0 .9 1 1.5 1.8 1L20 13c.8-.5.8-1.6 0-2.1L10.3 4.8c-.8-.5-1.8.1-1.8 1Z"/></svg>
+      </button>
+      <button class="b" id="nextBtn" title="下一首">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 5.5v13M5.5 6.6c0-.9 1-1.4 1.7-.9l8.4 5.4c.7.4.7 1.4 0 1.9l-8.4 5.4c-.7.4-1.7-.1-1.7-.9V6.6Z"/></svg>
+      </button>
+      <button class="b close" id="closeBtn" title="关闭迷你模式">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+  </div>
+  <div id="eqWrap"><div class="eq" id="eq"><i></i><i></i><i></i><i></i></div></div>
+  <script src="mini.js"></script>
+</body>
+</html>
