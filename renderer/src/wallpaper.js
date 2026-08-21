@@ -1,13 +1,13 @@
 // ============================================================
-// WallpaperLayer ? ?????? + ??????
+// WallpaperLayer 壁纸渲染层 + 后台省电
 // ============================================================
 export const WALLPAPER_TYPES = [
-  { key: 'stardust', name: '????' },
-  { key: 'mist', name: '????' },
-  { key: 'aurora', name: '????' },
-  { key: 'moonlight', name: '???' },
-  { key: 'firefly', name: '????' },
-  { key: 'we', name: '????' }
+  { key: 'stardust', name: '星尘夜航' },
+  { key: 'mist', name: '晨雾山谷' },
+  { key: 'aurora', name: '极光薄暮' },
+  { key: 'moonlight', name: '月光海' },
+  { key: 'firefly', name: '森林萤火' },
+  { key: 'we', name: '壁纸引擎' }
 ];
 
 const rand = (a, b) => a + Math.random() * (b - a);
