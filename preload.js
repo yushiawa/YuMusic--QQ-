@@ -39,6 +39,7 @@ contextBridge.exposeInMainWorld('api', {
   toggleLyricWindow: () => ipcRenderer.invoke('toggle-lyric-window'),
   sendLyricLine: (data) => ipcRenderer.send('lyric-line', data),
   likeSong: (id, like) => ipcRenderer.invoke('like-song', id, like),
+  songStats: (id, platform, songid) => ipcRenderer.invoke('song-stats', id, platform, songid),
   likeStatus: (ids) => ipcRenderer.invoke('like-status', ids),
   openSongPage: (id) => ipcRenderer.invoke('open-song-page', id),
   aiTest: (cfg) => ipcRenderer.invoke('ai-test', cfg),

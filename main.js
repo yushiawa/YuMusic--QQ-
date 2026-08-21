@@ -992,6 +992,102 @@ async function qqCookieMap() {
   return m;
 }
 
+// ---------- 歌曲评论 / 喜欢数（网易云 / QQ） ----------
+function fmtStatCount(n) {
+  if (!Number.isFinite(n) || n < 0) return null;
+  if (n >= 100000000) return (n / 100000000).toFixed(1).replace(/\.0$/, '') + '亿';
+  if (n >= 10000) return (n / 10000).toFixed(1).replace(/\.0$/, '') + '万';
+  return String(Math.round(n));
+}
+
+async function ncmSongStats(id) {
+  const out = { total: 0, list: [], pop: null, error: '' };
+  // 评论（公开接口，无需登录）
+  try {
+    const j = await fetchJson('https://music.163.com/api/v1/resource/comments/R_SO_4_' + encodeURIComponent(String(id)) + '?limit=20&offset=0');
+    if (j && typeof j.total === 'number') {
+      out.total = j.total;
+      out.list = (Array.isArray(j.hotComments) ? j.hotComments : []).slice(0, 20).map((c) => ({
+        nick: (c.user && c.user.nickname) || '匿名用户',
+        avatar: (c.user && c.user.avatarUrl) || '',
+        content: String(c.content || ''),
+        time: c.time || 0,
+        likes: c.likedCount || 0,
+        loc: (c.ipLocation && c.ipLocation.location) || ''
+      }));
+    } else {
+      out.error = '评论接口无数据（code=' + (j && j.code) + '）';
+    }
+  } catch (err) {
+    out.error = String(err && err.message || err);
+  }
+  // 热度：网易云无公开喜欢数，用 weapi v3/song/detail 的 pop（0-100），失败回退公开接口 score
+  try {
+    const cookie = await cookieHeader();
+    const { params, encSecKey } = weapiEncrypt({ c: '[{"id":' + Number(id) + '}]', ids: '[' + Number(id) + ']' });
+    const res = await nfetch(BASE + '/weapi/v3/song/detail', {
+      method: 'POST',
+      headers: cookie
+        ? { ...API_HEADERS, Origin: BASE + '/', 'Content-Type': 'application/x-www-form-urlencoded', Cookie: buildWeapiCookie(cookie) }
+        : { ...API_HEADERS, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'params=' + encodeURIComponent(params) + '&encSecKey=' + encodeURIComponent(encSecKey)
+    });
+    const j = await res.json();
+    if (j && j.songs && j.songs[0] && typeof j.songs[0].pop === 'number') out.pop = j.songs[0].pop;
+  } catch (err) {
+    try {
+      const j2 = await fetchJson('https://music.163.com/api/song/detail/?ids=%5B' + Number(id) + '%5D');
+      const song = j2 && j2.songs && j2.songs[0];
+      if (song && typeof song.score === 'number') out.pop = song.score;
+    } catch (err2) { /* 忽略 */ }
+  }
+  return out;
+}
+
+async function qqSongStats(songid) {
+  const out = { total: 0, list: [], favnum: null, error: '' };
+  const sid = Number(songid) || 0;
+  // 评论
+  try {
+    const res = await nfetch('https://c.y.qq.com/base/fcgi-bin/fcg_global_comment_h5.fcg?g_tk=5381&loginUin=0&hostUin=0&format=json&inCharset=utf8&outCharset=utf-8&notice=0&platform=yqq.json&needNewCode=0&cid=205360772&reqtype=2&biztype=1&topid=' + sid + '&pagenum=0&pagesize=20&lasthotcommentid=&cmd=8', {
+      headers: { 'User-Agent': UA, Referer: 'https://y.qq.com/' }
+    });
+    const txt = await res.text();
+    const j = JSON.parse(txt.replace(/^\uFEFF/, ''));
+    const hot = (j && j.hot_comment) || {};
+    if (j && j.comment && typeof j.comment.commenttotal === 'number') out.total = j.comment.commenttotal;
+    out.list = (Array.isArray(hot.commentlist) ? hot.commentlist : []).slice(0, 20).map((c) => ({
+      nick: String(c.nick || ''),
+      avatar: String(c.avatarurl || ''),
+      content: String(c.rootcommentcontent || c.commentcontent || ''),
+      time: c.time || 0,
+      likes: c.praisenum || 0
+    }));
+    if (!out.total && !out.list.length) out.error = '评论接口无数据（code=' + (j && j.code) + '）';
+  } catch (err) {
+    out.error = String(err && err.message || err);
+  }
+  // 喜欢数：musicu.fcg GetSongFansNumberById（songid 需为数字）
+  try {
+    if (!qqGuid) qqGuid = Math.floor(100000000 + Math.random() * 900000000);
+    const uin = await qqUin();
+    const j = await qqPost({
+      comm: { ct: 19, cv: 1859, uin: Number(uin) || 0, guid: String(qqGuid) },
+      req_0: { module: 'music.musicasset.SongFavRead', method: 'GetSongFansNumberById', param: { v_songId: [sid] } }
+    });
+    const d = j && j.req_0 && j.req_0.data;
+    if (j && j.req_0 && j.req_0.code === 0 && d && d.m_numbers && typeof d.m_numbers[String(sid)] === 'number') {
+      out.favnum = d.m_numbers[String(sid)];
+    }
+  } catch (err) { /* 喜欢数失败可忽略 */ }
+  return out;
+}
+
+ipcMain.handle('song-stats', async (_e, id, platform, songid) => {
+  if (platform === 'qq') return qqSongStats(songid || id);
+  return ncmSongStats(id);
+});
+
 async function qqLikedDiag(uin) {
   const cm = await qqCookieMap();
   const skey = cm.skey || cm.p_skey || cm.qqmusic_key || '';

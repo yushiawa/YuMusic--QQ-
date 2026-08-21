@@ -211,6 +211,16 @@ export class WallpaperLayer {
     }
   }
 
+  // 后台省电：隐藏窗口时暂停壁纸视频，恢复时按需重新播放
+  backgroundPause(on) {
+    this.bgPaused = !!on;
+    if (on) {
+      this.pauseVideo();
+    } else if (this.active && this.type === 'we' && this.weItem) {
+      this.applyWe(this.weItem);
+    }
+  }
+
   render(t, bass, power) {
     if (!this.ctx || !this.active) return;
     if (this.type === 'we') return;

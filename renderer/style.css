@@ -1757,6 +1757,52 @@ body.stage-mode #playerbar.auto-hide {
 .q-name { flex: 1; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .q-artist { font-size: 11px; color: var(--muted); max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: none; }
 .queue-empty { padding: 22px 14px; text-align: center; color: var(--muted); font-size: 12px; }
+/* 歌曲评论面板 */
+.stage-stats {
+  margin-top: 4px; font-size: 12px; color: hsla(var(--c1h, 200), 90%, 72%, 0.95);
+  pointer-events: auto; cursor: pointer; user-select: none;
+  text-shadow: 0 1px 8px rgba(0,0,0,0.7);
+  transition: color .2s, opacity .2s;
+}
+.stage-stats:hover { color: #fff; }
+.stage-stats.hidden { display: none; }
+
+.comment-panel {
+  position: fixed; right: 18px; bottom: 96px; z-index: 56;
+  width: 400px; max-width: calc(100vw - 36px); max-height: 62vh;
+  display: flex; flex-direction: column;
+  border-radius: 18px; background: rgba(12,14,22,0.97);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 18px 50px rgba(0,0,0,0.5);
+  overflow: hidden;
+  animation: panelIn .25s cubic-bezier(.2,.9,.3,1);
+}
+.comment-panel.hidden { display: none; }
+.comment-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.comment-title { font-size: 14px; font-weight: 700; letter-spacing: 0.5px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.comment-count { font-size: 11px; color: var(--muted); flex: none; }
+.comment-close {
+  width: 26px; height: 26px; border: none; border-radius: 8px; cursor: pointer;
+  background: transparent; color: var(--muted); display: flex; align-items: center; justify-content: center;
+  transition: background .18s, color .18s; flex: none;
+}
+.comment-close:hover { background: rgba(255,255,255,0.12); color: #fff; }
+.comment-list { overflow-y: auto; padding: 8px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.14) transparent; }
+.comment-list::-webkit-scrollbar { width: 6px; }
+.comment-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 3px; }
+.comment-row { display: flex; gap: 10px; padding: 10px; border-radius: 12px; transition: background .18s; }
+.comment-row:hover { background: rgba(255,255,255,0.06); }
+.c-avatar { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; flex: none; background: rgba(255,255,255,0.08); }
+.c-avatar-fallback { display: inline-block; background: linear-gradient(135deg, hsla(var(--c1h,200),80%,60%,0.55), hsla(calc(var(--c1h,200) + 70),80%,60%,0.45)); }
+.c-body { flex: 1; min-width: 0; }
+.c-meta { display: flex; align-items: baseline; gap: 8px; }
+.c-nick { font-size: 12px; font-weight: 700; color: hsla(var(--c1h,200),90%,75%,0.95); max-width: 55%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.c-time { font-size: 10.5px; color: var(--dim); flex: none; }
+.c-text { margin-top: 4px; font-size: 12.5px; line-height: 1.55; color: rgba(235,240,255,0.92); white-space: pre-wrap; word-break: break-word; }
+.c-like { margin-top: 5px; display: flex; align-items: center; gap: 4px; font-size: 11px; color: #ff5f7e; }
+.c-like-ico { font-size: 10px; }
+.comment-empty, .comment-loading { padding: 26px 14px; text-align: center; color: var(--muted); font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+
 
 /* 首次启动动态封面 */
 .intro-splash {
@@ -2657,7 +2703,7 @@ body.ark-theme input[type="range"] { accent-color: #e8c76a; }
 /* 底部控制栏 / 面板 */
 body.ark-theme #playerbar { border-color: rgba(58,160,255,0.3); box-shadow: 0 10px 34px rgba(0,0,0,0.5), 0 -1px 0 rgba(232,199,106,0.14); }
 body.ark-theme .queue-title, body.ark-theme .extra-title { color: #f0d892; }
-body.ark-theme .queue-panel, body.ark-theme .extra-panel { border-color: rgba(58,160,255,0.22); }
+body.ark-theme .queue-panel, body.ark-theme .extra-panel, body.ark-theme .comment-panel { border-color: rgba(58,160,255,0.22); }
 
 /* 迷你窗口 / 桌面歌词主题（同源 localStorage 联动） */
 body.ark-theme #barFill, body.ark-theme .mini-progress-fill { background: linear-gradient(90deg, #3aa0ff, #e8c76a); }

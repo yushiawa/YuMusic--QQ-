@@ -25,6 +25,10 @@ let currentSong = null;
 let queue = [];        // 播放队列（搜索歌单）
 let queueIndex = -1;
 let queuePanelOpen = false; // 队列面板打开时暂停高开销 3D 更新（滚动不掉帧）
+let bgSaveEnabled = localStorage.getItem('qin-bg-save') !== '0'; // 后台省电（默认开启）
+let commentPanelOpen = false; // 歌曲评论面板
+const songStatsCache = new Map(); // platform:id -> { time, data }
+let songStatsGen = 0;
 let displayedList = []; // 当前列表（渲染用）
 let displayedListKind = ''; // 当前列表类型：'netease-liked' / 'qq-liked' / ''
 let fmActive = false;   // 私人FM 模式
@@ -844,9 +848,14 @@ if (!FRAME_CAPS.includes(frameCap)) frameCap = 60;
 let lastFrameT = 0;
 let lastT = performance.now();
 function animate(ts) {
+  if (bgSaveEnabled && document.hidden) {
+    lastFrameT = performance.now();
+    lastT = lastFrameT;
+    setTimeout(animate, 500); // 后台省电：低频轮询代替 rAF 全速空转，恢复可见后立即切回
+    return;
+  }
   requestAnimationFrame(animate);
   const now = performance.now();
-  if (document.hidden) { lastFrameT = now; lastT = now; return; } // 窗口隐藏/最小化时暂停渲染，恢复立即续帧
   if (now - lastFrameT < (1000 / frameCap)) return; // 按所选帧率节流：统一用 performance.now()，避免与 rAF 时间戳混用导致帧间隔抖动
   lastFrameT = now;
   const dt = Math.min(0.05, (now - lastT) / 1000);
@@ -1824,6 +1833,7 @@ async function playSong(song, idx) {
     if (typeof idx === 'number') queueIndex = idx;
     currentSong = song;
     recordHistory(song);
+    loadSongStats(song); // 并行：评论 / 喜欢数
     // 立即反馈：标题 / 舞台切换 / 状态，不必等播放地址返回
     pbTitle.textContent = song.name;
     pbArtist.textContent = song.artist + ' · ' + song.album;
@@ -2055,6 +2065,157 @@ async function loadCoverImg(url) {
   } catch (err) {
     return { img: null, data: '' };
   }
+}
+
+// ================= 歌曲评论 / 喜欢数 =================
+async function fetchSongStats(song) {
+  if (!song) return null;
+  const pf = (song.platform) || 'netease';
+  const id = String(song.id || '');
+  if (!id) return null;
+  const key = pf + ':' + id;
+  const hit = songStatsCache.get(key);
+  if (hit && Date.now() - hit.time < 5 * 60 * 1000) return hit.data;
+  if (!window.api || typeof window.api.songStats !== 'function') return null;
+  try {
+    const data = await window.api.songStats(id, pf, song && song.songid);
+    if (data) {
+      songStatsCache.set(key, { time: Date.now(), data });
+      if (songStatsCache.size > 100) { const k = songStatsCache.keys().next().value; songStatsCache.delete(k); }
+    }
+    return data;
+  } catch (err) { return null; }
+}
+
+async function loadSongStats(song) {
+  const gen = ++songStatsGen;
+  const statsEl = $('stageStats');
+  if (statsEl) { statsEl.classList.add('hidden'); statsEl.title = ''; }
+  const st = await fetchSongStats(song);
+  if (gen !== songStatsGen || song !== currentSong) return; // 已切歌，丢弃过期结果
+  if (statsEl) {
+    if (st) {
+      const parts = [];
+      const pf = (song.platform) || 'netease';
+      if (pf === 'qq') {
+        if (typeof st.favnum === 'number' && st.favnum > 0) parts.push('♥ ' + fmtCount(st.favnum) + ' 人喜欢');
+      } else if (typeof st.pop === 'number') {
+        parts.push('热度 ' + st.pop);
+      }
+      if (typeof st.total === 'number' && st.total > 0) parts.push('评论 ' + fmtCount(st.total));
+      if (parts.length) {
+        statsEl.textContent = parts.join(' · ');
+        statsEl.title = '点击查看歌曲评论';
+        statsEl.classList.remove('hidden');
+      } else if (st.error) {
+        statsEl.textContent = '评论加载失败';
+        statsEl.title = st.error;
+        statsEl.classList.remove('hidden');
+      }
+    } else {
+      statsEl.textContent = '评论加载失败';
+      statsEl.title = '网络或接口暂不可用';
+      statsEl.classList.remove('hidden');
+    }
+  }
+  if (commentPanelOpen) renderComments(currentSong);
+}
+
+function toggleComments(show) {
+  const panel = $('commentPanel');
+  if (!panel) return;
+  const next = show === undefined ? panel.classList.contains('hidden') : show;
+  panel.classList.toggle('hidden', !next);
+  commentPanelOpen = next;
+  if (next) {
+    renderComments(currentSong);
+    if (currentSong) {
+      const key = (currentSong.platform || 'netease') + ':' + String(currentSong.id || '');
+      if (!songStatsCache.has(key)) loadSongStats(currentSong);
+    }
+  }
+}
+
+function renderComments(song) {
+  const list = $('commentList');
+  const count = $('commentCount');
+  const title = $('commentTitle');
+  if (!list) return;
+  if (!song) {
+    list.innerHTML = '<div class="comment-empty">暂无播放歌曲</div>';
+    if (count) count.textContent = '';
+    if (title) title.textContent = '歌曲评论';
+    return;
+  }
+  const pf = (song.platform) || 'netease';
+  if (title) title.textContent = (pf === 'qq' ? 'QQ音乐' : '网易云音乐') + ' · ' + song.name;
+  const key = pf + ':' + String(song.id || '');
+  const hit = songStatsCache.get(key);
+  if (!hit) {
+    list.innerHTML = '<div class="comment-loading"><span class="spinner sm"></span>评论加载中…</div>';
+    if (count) count.textContent = '';
+    return;
+  }
+  const st = hit.data || {};
+  if (count) count.textContent = st.total > 0 ? '共 ' + fmtCount(st.total) + ' 条' : '';
+  if (st.error && !(st.list || []).length) {
+    list.innerHTML = '<div class="comment-empty">评论加载失败：' + escHtml(st.error) + '</div>';
+    return;
+  }
+  if (!(st.list || []).length) {
+    list.innerHTML = '<div class="comment-empty">暂无热门评论</div>';
+    return;
+  }
+  list.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  st.list.forEach((c) => {
+    const row = document.createElement('div');
+    row.className = 'comment-row';
+    const avatar = c.avatar
+      ? '<img class="c-avatar" src="' + c.avatar + '" alt="" loading="lazy" referrerpolicy="no-referrer" />'
+      : '<span class="c-avatar c-avatar-fallback"></span>';
+    row.innerHTML = avatar + '<div class="c-body"><div class="c-meta"><span class="c-nick"></span><span class="c-time"></span></div><div class="c-text"></div><div class="c-like"><span class="c-like-ico">♥</span><b></b></div></div>';
+    row.children[1].children[0].children[0].textContent = c.nick || '匿名用户';
+    row.children[1].children[0].children[1].textContent = fmtCommentTime(c.time) + (c.loc ? ' · ' + c.loc : '');
+    row.children[1].children[1].textContent = c.content;
+    row.children[1].children[2].children[1].textContent = fmtCount(c.likes);
+    frag.appendChild(row);
+  });
+  list.appendChild(frag);
+}
+
+function initBgSave() {
+  const btn = $('bgSaveBtn');
+  if (btn) {
+    btn.classList.toggle('on', bgSaveEnabled);
+    btn.addEventListener('click', () => {
+      bgSaveEnabled = !bgSaveEnabled;
+      localStorage.setItem('qin-bg-save', bgSaveEnabled ? '1' : '0');
+      btn.classList.toggle('on', bgSaveEnabled);
+      if (wallpaperLayer) {
+        if (bgSaveEnabled && document.hidden) wallpaperLayer.backgroundPause(true);
+        else if (!bgSaveEnabled) wallpaperLayer.backgroundPause(false);
+      }
+    });
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (wallpaperLayer && bgSaveEnabled) wallpaperLayer.backgroundPause(document.hidden);
+    if (!document.hidden) { lastFrameT = 0; lastT = performance.now(); } // 恢复可见立即续帧
+  });
+}
+
+function initComments() {
+  const btn = $('commentsBtn');
+  const stats = $('stageStats');
+  if (btn) btn.addEventListener('click', () => toggleComments());
+  if (stats) stats.addEventListener('click', () => toggleComments());
+  const close = $('commentClose');
+  if (close) close.addEventListener('click', () => toggleComments(false));
+  // 打开队列 / 声音面板时收起评论，避免叠层
+  const qb = $('queueBtn');
+  const eb = $('fxBtn');
+  if (qb) qb.addEventListener('click', () => toggleComments(false));
+  if (eb) eb.addEventListener('click', () => toggleComments(false));
 }
 
 async function applyCover(url) {
@@ -6033,9 +6194,22 @@ function fmt(sec) {
 }
 
 function fmtCount(n) {
+  if (!Number.isFinite(n) || n < 0) return '--';
+  if (n >= 100000000) return (n / 100000000).toFixed(1).replace(/\.0$/, '') + '亿';
   if (n >= 10000) return (n / 10000).toFixed(1).replace(/\.0$/, '') + '万';
-  return String(n);
+  return String(Math.round(n));
 }
+
+function fmtCommentTime(ts) {
+  if (!ts) return '';
+  const num = Number(ts);
+  const ms = num > 1e12 ? num : num * 1000; // 网易云为毫秒，QQ 为秒
+  const d = new Date(ms);
+  if (isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
 
 // ================= 首次启动动态封面 =================
 function startIntroCanvas(introSplashEl) {
@@ -6101,6 +6275,8 @@ applyBgSettings();
 setStageMode(stageMode);
 initMrParams();
 initWallpaperControls();
+initBgSave();
+initComments();
 refreshLogin();
 refreshQqLogin();
 renderHistoryStrip();
